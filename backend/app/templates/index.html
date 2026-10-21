@@ -4,28 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GUARDIAN · Seguridad Digital Inteligente</title>
+    <!-- ✅ FAVICON -->
+    <link rel="icon" type="image/png" href="/static/logo_shield.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: #0A0F1A; color: #FFFFFF; overflow-x: hidden; }
-
-        /* ---- FONDO ---- */
-        .bg-image {
-            position: fixed; top: -5%; left: -5%; width: 110%; height: 110%; z-index: -2;
-            background: url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=1920&q=80') center/cover;
-            filter: brightness(0.4) blur(3px); animation: slowZoom 25s ease-in-out infinite alternate;
-        }
+        .bg-image { position: fixed; top: -5%; left: -5%; width: 110%; height: 110%; z-index: -2; background: url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=1920&q=80') center/cover; filter: brightness(0.4) blur(3px); animation: slowZoom 25s ease-in-out infinite alternate; }
         @keyframes slowZoom { 0% { transform: scale(1); } 100% { transform: scale(1.05); } }
         .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: radial-gradient(circle, rgba(10,15,26,0.3) 0%, #0A0F1A 90%); }
-
-        /* ---- HEADER ---- */
-        header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 20px 5%; background: rgba(10, 18, 32, 0.8); backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(0, 180, 255, 0.1); position: sticky; top: 0; z-index: 100;
-        }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 20px 5%; background: rgba(10, 18, 32, 0.8); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0, 180, 255, 0.1); position: sticky; top: 0; z-index: 100; }
         .logo-container { display: flex; align-items: center; gap: 15px; }
         .logo-img { height: 60px; filter: drop-shadow(0 0 15px rgba(255,215,0,0.5)); }
         .logo-text { font-size: 1.8rem; font-weight: 800; background: linear-gradient(135deg, #4A90E2, #00B4FF); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
@@ -33,12 +23,7 @@
         .btn-nav { padding: 10px 24px; border-radius: 40px; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: #fff; text-decoration: none; font-weight: 600; transition: 0.3s; }
         .btn-nav:hover { background: rgba(0, 180, 255, 0.1); border-color: #00B4FF; }
         .btn-nav.primary { background: linear-gradient(135deg, #0033FF, #00D4FF); border: none; box-shadow: 0 4px 15px rgba(0,100,255,0.3); }
-
-        /* ---- HERO ---- */
-        .hero {
-            display: flex; flex-direction: column; align-items: center; text-align: center;
-            padding: 80px 20px 60px; max-width: 900px; margin: 0 auto;
-        }
+        .hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 80px 20px 60px; max-width: 900px; margin: 0 auto; }
         .hero h1 { font-size: 3.5rem; font-weight: 800; line-height: 1.1; margin-bottom: 20px; }
         .hero h1 span { background: linear-gradient(135deg, #00B4FF, #F5A623); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .hero p { font-size: 1.2rem; color: #94A3B8; max-width: 700px; margin-bottom: 40px; line-height: 1.6; }
@@ -48,58 +33,34 @@
         .btn-hero.download:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,100,255,0.6); }
         .btn-hero.demo { background: transparent; color: #fff; border: 2px solid rgba(255,255,255,0.2); }
         .btn-hero.demo:hover { border-color: #00B4FF; background: rgba(0,180,255,0.05); }
-
-        /* ---- CARACTERÍSTICAS ---- */
         .features { padding: 60px 5%; max-width: 1200px; margin: 0 auto; }
         .section-title { font-size: 2.5rem; font-weight: 700; margin-bottom: 10px; text-align: center; }
         .section-sub { color: #94A3B8; text-align: center; margin-bottom: 50px; font-size: 1.1rem; }
         .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 25px; }
-        .feature-card {
-            background: rgba(10, 18, 32, 0.6); backdrop-filter: blur(10px);
-            border: 1px solid rgba(0, 180, 255, 0.08); border-radius: 24px;
-            padding: 30px; transition: 0.4s; cursor: default;
-        }
+        .feature-card { background: rgba(10, 18, 32, 0.6); backdrop-filter: blur(10px); border: 1px solid rgba(0, 180, 255, 0.08); border-radius: 24px; padding: 30px; transition: 0.4s; }
         .feature-card:hover { transform: translateY(-8px); border-color: rgba(0, 180, 255, 0.2); box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
         .feature-icon { font-size: 2.5rem; margin-bottom: 15px; display: block; }
         .feature-card h3 { font-size: 1.2rem; margin-bottom: 10px; }
         .feature-card p { color: #94A3B8; font-size: 0.95rem; line-height: 1.5; }
-
-        /* ---- EQUIPO ---- */
-        .team { padding: 60px 5%; max-width: 1200px; margin: 0 auto; border-top: 1px solid rgba(255,255,255,0.05); }
-        .grid-5 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; text-align: center; }
-        .member-card { background: rgba(255,255,255,0.03); border-radius: 20px; padding: 20px; border: 1px solid rgba(255,255,255,0.05); }
-        .member-card h4 { color: #00B4FF; font-size: 1rem; margin-bottom: 5px; }
-        .member-card p { color: #94A3B8; font-size: 0.8rem; }
-
-        /* ---- ESTADO Y MÉTRICAS ---- */
         .status-section { padding: 60px 5%; max-width: 1200px; margin: 0 auto; border-top: 1px solid rgba(255,255,255,0.05); }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; text-align: center; }
         .stat-box { background: rgba(0, 180, 255, 0.05); border-radius: 16px; padding: 20px; border: 1px solid rgba(0, 180, 255, 0.1); }
         .stat-box .num { font-size: 2rem; font-weight: 800; color: #00B4FF; }
         .stat-box .label { color: #94A3B8; font-size: 0.9rem; margin-top: 5px; }
-
-        /* ---- PIE DE PÁGINA ---- */
+        .team { padding: 60px 5%; max-width: 1200px; margin: 0 auto; border-top: 1px solid rgba(255,255,255,0.05); }
+        .grid-5 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; text-align: center; }
+        .member-card { background: rgba(255,255,255,0.03); border-radius: 20px; padding: 20px; border: 1px solid rgba(255,255,255,0.05); }
+        .member-card h4 { color: #00B4FF; font-size: 1rem; margin-bottom: 5px; }
+        .member-card p { color: #94A3B8; font-size: 0.8rem; }
         footer { padding: 40px 5%; border-top: 1px solid rgba(255,255,255,0.05); text-align: center; color: #94A3B8; font-size: 0.9rem; margin-top: 40px; }
         footer a { color: #00B4FF; text-decoration: none; }
-
-        /* ---- RESPONSIVE ---- */
-        @media (max-width: 768px) {
-            header { flex-direction: column; gap: 15px; }
-            .hero h1 { font-size: 2.5rem; }
-            .grid-4, .grid-5, .stats-grid { grid-template-columns: 1fr 1fr; }
-        }
-        @media (max-width: 480px) {
-            .hero h1 { font-size: 2rem; }
-            .grid-4, .grid-5, .stats-grid { grid-template-columns: 1fr; }
-        }
+        @media (max-width: 768px) { header { flex-direction: column; gap: 15px; } .hero h1 { font-size: 2.5rem; } .grid-4, .grid-5, .stats-grid { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 480px) { .hero h1 { font-size: 2rem; } .grid-4, .grid-5, .stats-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
-
     <div class="bg-image"></div>
     <div class="overlay"></div>
-
-    <!-- HEADER -->
     <header>
         <div class="logo-container">
             <img src="/static/logo_shield.png" alt="Guardian Logo" class="logo-img">
@@ -111,126 +72,48 @@
             <a href="/login.html" class="btn-nav primary">Acceder al Panel</a>
         </div>
     </header>
-
-    <!-- HERO -->
     <section class="hero">
         <h1>Protege tu información con <span>GUARDIAN</span></h1>
-        <p>
-            Sistema de rastreo, monitoreo y encriptación de dispositivos en tiempo real. 
-            Desarrollado por la UTVT para garantizar la seguridad de tus equipos y datos confidenciales.
-        </p>
+        <p>Sistema de rastreo, monitoreo y encriptación de dispositivos en tiempo real. Desarrollado por la UTVT para garantizar la seguridad de tus equipos y datos confidenciales.</p>
         <div class="hero-buttons">
             <a href="/static/guardian-agent.exe" class="btn-hero download" download>📥 Descargar Agente</a>
             <a href="/login.html" class="btn-hero demo">🚀 Ver Demo</a>
         </div>
     </section>
-
-    <!-- CARACTERÍSTICAS -->
     <section class="features" id="features">
         <h2 class="section-title">¿Qué hace GUARDIAN?</h2>
         <p class="section-sub">Una solución integral de ciberseguridad sin depender de servidores externos.</p>
         <div class="grid-4">
-            <div class="feature-card">
-                <span class="feature-icon">🔒</span>
-                <h3>Cifrado de Archivos</h3>
-                <p>Tus documentos sensibles permanecen protegidos incluso si el dispositivo es robado o accedido sin autorización.</p>
-            </div>
-            <div class="feature-card">
-                <span class="feature-icon">🌐</span>
-                <h3>Rastreo en Tiempo Real</h3>
-                <p>Localización aproximada por IP y cambios de red. Detecta cuándo y dónde se conecta tu equipo.</p>
-            </div>
-            <div class="feature-card">
-                <span class="feature-icon">⚡</span>
-                <h3>Alertas Inmediatas</h3>
-                <p>Notificaciones en menos de 30 segundos ante eventos críticos como desconexiones o comportamientos sospechosos.</p>
-            </div>
-            <div class="feature-card">
-                <span class="feature-icon">📡</span>
-                <h3>Monitoreo de Logs</h3>
-                <p>Análisis automático de Syslogs (Linux) y Event Logs (Windows) para detectar anomalías con precisión ≥ 85%.</p>
-            </div>
+            <div class="feature-card"><span class="feature-icon">🔒</span><h3>Cifrado de Archivos</h3><p>Tus documentos sensibles permanecen protegidos incluso si el dispositivo es robado.</p></div>
+            <div class="feature-card"><span class="feature-icon">🌐</span><h3>Rastreo en Tiempo Real</h3><p>Localización aproximada por IP y cambios de red. Detecta cuándo y dónde se conecta tu equipo.</p></div>
+            <div class="feature-card"><span class="feature-icon">⚡</span><h3>Alertas Inmediatas</h3><p>Notificaciones en menos de 30 segundos ante eventos críticos o comportamientos sospechosos.</p></div>
+            <div class="feature-card"><span class="feature-icon">📡</span><h3>Monitoreo de Logs</h3><p>Análisis automático de Syslogs y Event Logs para detectar anomalías con precisión.</p></div>
         </div>
     </section>
-
-    <!-- ESTADO DEL PROYECTO -->
     <section class="status-section">
         <h2 class="section-title">Estado del Proyecto</h2>
         <p class="section-sub">Métricas actuales de desarrollo y protección.</p>
         <div class="stats-grid">
-            <div class="stat-box">
-                <div class="num">9</div>
-                <div class="label">Meses de desarrollo</div>
-            </div>
-            <div class="stat-box">
-                <div class="num">8</div>
-                <div class="label">Sprints Ágiles completados</div>
-            </div>
-            <div class="stat-box">
-                <div class="num">100%</div>
-                <div class="label">Cifrado de archivos sensibles</div>
-            </div>
-            <div class="stat-box">
-                <div class="num">≤ 30s</div>
-                <div class="label">Tiempo de respuesta ante alertas</div>
-            </div>
+            <div class="stat-box"><div class="num">9</div><div class="label">Meses de desarrollo</div></div>
+            <div class="stat-box"><div class="num">8</div><div class="label">Sprints Ágiles</div></div>
+            <div class="stat-box"><div class="num">100%</div><div class="label">Cifrado AES-256</div></div>
+            <div class="stat-box"><div class="num">≤ 30s</div><div class="label">Tiempo de alertas</div></div>
         </div>
     </section>
-
-    <!-- EQUIPO DESARROLLADOR -->
     <section class="team" id="team">
         <h2 class="section-title">Equipo Desarrollador</h2>
         <p class="section-sub">Ingeniería en Redes Inteligentes y Ciberseguridad - UTVT</p>
         <div class="grid-5">
-            <div class="member-card">
-                <h4>Primitivo Valdez G.</h4>
-                <p>Líder Técnico / Backend</p>
-            </div>
-            <div class="member-card">
-                <h4>Daniela Colín</h4>
-                <p>Frontend / UX</p>
-            </div>
-            <div class="member-card">
-                <h4>Víctor Nolasco Q.</h4>
-                <p>Módulo de Seguridad</p>
-            </div>
-            <div class="member-card">
-                <h4>Monserrat Romero M.</h4>
-                <p>Documentación / Auditoría</p>
-            </div>
-            <div class="member-card">
-                <h4>Daniela Colín S.</h4>
-                <p>Integración y Pruebas</p>
-            </div>
+            <div class="member-card"><h4>Primitivo Valdez G.</h4><p>Líder Técnico / Backend</p></div>
+            <div class="member-card"><h4>Daniela Colín</h4><p>Frontend / UX</p></div>
+            <div class="member-card"><h4>Víctor Nolasco Q.</h4><p>Módulo de Seguridad</p></div>
+            <div class="member-card"><h4>Monserrat Romero M.</h4><p>Documentación / Auditoría</p></div>
+            <div class="member-card"><h4>Daniela Colín S.</h4><p>Integración y Pruebas</p></div>
         </div>
     </section>
-
-    <!-- FOOTER -->
     <footer>
         <p>&copy; 2026 GUARDIAN · Universidad Tecnológica del Valle de Toluca</p>
-        <p style="margin-top:10px; font-size:0.8rem;">
-            <a href="/login.html">Acceso al Sistema</a> · 
-            <a href="#">Política de Privacidad</a> · 
-            <a href="https://github.com/tu-repositorio" target="_blank">GitHub</a>
-        </p>
+        <p style="margin-top:10px; font-size:0.8rem;"><a href="/login.html">Acceso al Sistema</a> · <a href="#">Privacidad</a></p>
     </footer>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        const coords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-                        fetch('/api/registrar-ubicacion', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(coords)
-                        }).catch(() => {});
-                    },
-                    () => {},
-                    { enableHighAccuracy: true, timeout: 5000 }
-                );
-            }
-        });
-    </script>
 </body>
+</html>
