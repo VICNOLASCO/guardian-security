@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Guardian · Acceso</title>
+    <!-- Fuentes tecnológicas -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Montserrat', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            background: #0A0F1A;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .bg-image {
+            position: fixed;
+            top: -5%;
+            left: -5%;
+            width: 110%;
+            height: 110%;
+            z-index: 0;
+            background-image: url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=1920&q=80');
+            background-size: cover;
+            background-position: center;
+            filter: brightness(0.6) saturate(1.2) blur(4px);
+            animation: slowZoom 25s ease-in-out infinite alternate;
+        }
+
+        @keyframes slowZoom {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.08); }
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: radial-gradient(circle at center, rgba(0, 15, 30, 0.3) 0%, rgba(0, 0, 0, 0.85) 100%);
+        }
+
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(0, 180, 255, 0.4);
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0, 180, 255, 0.3);
+            animation: float-particle 25s infinite linear;
+        }
+        .particle:nth-child(1) { left: 5%; animation-duration: 20s; animation-delay: 0s; }
+        .particle:nth-child(2) { left: 15%; animation-duration: 24s; animation-delay: 2s; }
+        .particle:nth-child(3) { left: 25%; animation-duration: 18s; animation-delay: 4s; }
+        .particle:nth-child(4) { left: 35%; animation-duration: 26s; animation-delay: 1s; }
+        .particle:nth-child(5) { left: 45%; animation-duration: 22s; animation-delay: 3s; }
+        .particle:nth-child(6) { left: 55%; animation-duration: 19s; animation-delay: 5s; }
+        .particle:nth-child(7) { left: 65%; animation-duration: 23s; animation-delay: 2s; }
+        .particle:nth-child(8) { left: 75%; animation-duration: 21s; animation-delay: 4s; }
+        .particle:nth-child(9) { left: 85%; animation-duration: 25s; animation-delay: 0s; }
+        .particle:nth-child(10) { left: 95%; animation-duration: 18s; animation-delay: 3s; }
+        .particle:nth-child(11) { left: 10%; animation-duration: 27s; animation-delay: 1s; }
+        .particle:nth-child(12) { left: 40%; animation-duration: 20s; animation-delay: 4s; }
+        .particle:nth-child(13) { left: 70%; animation-duration: 22s; animation-delay: 2s; }
+        .particle:nth-child(14) { left: 90%; animation-duration: 24s; animation-delay: 5s; }
+        .particle:nth-child(15) { left: 50%; animation-duration: 19s; animation-delay: 1s; }
+
+        @keyframes float-particle {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+        }
+
+        .login-wrapper {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            max-width: 1200px;
+            width: 100%;
+            background: rgba(5, 12, 24, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 40px;
+            overflow: hidden;
+            border: 1px solid rgba(0, 180, 255, 0.15);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(0, 180, 255, 0.1);
+            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            margin: 20px 0;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .info-panel {
+            flex: 1.2;
+            padding: 40px 40px;
+            background: rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border-right: 1px solid rgba(0, 180, 255, 0.05);
+        }
+
+        .shield {
+            width: 340px;
+            height: 340px;
+            margin: 0 auto 20px auto;
+            display: block;
+            object-fit: contain;
+            filter: drop-shadow(0 0 80px rgba(255, 215, 0, 0.8));
+            animation: float 4s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .info-panel h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3.2rem;
+            font-weight: 800;
+            letter-spacing: 6px;
+            background: linear-gradient(135deg, #FFFFFF, #00B4FF);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+            text-shadow: 0 0 30px rgba(0, 180, 255, 0.3);
+        }
+
+        .info-panel .subtitle {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.85);
+            font-weight: 400;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .info-panel .slogan {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            font-style: italic;
+            border-left: 3px solid #00B4FF;
+            padding-left: 16px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            line-height: 1.6;
+            margin-bottom: 0;
+        }
+
+        .form-panel {
+            flex: 1;
+            padding: 60px 50px;
+            background: rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .form-panel h2 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #FFFFFF;
+            margin-bottom: 4px;
+            text-shadow: 0 2px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .form-panel .form-sub {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 30px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.7);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 6px;
+            font-weight: 600;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 16px 20px;
+            background: rgba(0, 10, 25, 0.8);
+            border: 2px solid rgba(0, 180, 255, 0.15);
+            border-radius: 14px;
+            font-size: 1rem;
+            color: #E0F0FF;
+            transition: all 0.3s ease;
+            outline: none;
+            font-family: 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.15);
+        }
+
+        .input-group input:focus {
+            border-color: #00B4FF;
+            background: rgba(0, 20, 45, 0.9);
+            box-shadow: 0 0 30px rgba(0, 180, 255, 0.15);
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #0033FF, #00D4FF);
+            border: none;
+            border-radius: 14px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #FFFFFF;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 6px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0, 100, 255, 0.4);
+        }
+
+        .btn-login::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .btn-login:hover::after {
+            left: 100%;
+        }
+
+        .btn-login:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 60px rgba(0, 150, 255, 0.5);
+            letter-spacing: 4px;
+        }
+
+        .btn-login:active {
+            transform: scale(0.98);
+        }
+
+        .error {
+            color: #FF4466;
+            font-size: 0.75rem;
+            margin-top: 12px;
+            min-height: 20px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            font-weight: 600;
+        }
+
+        .form-footer {
+            margin-top: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .security-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.6rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            font-weight: 600;
+        }
+
+        .security-badge .dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background: #4CAF50;
+            border-radius: 50%;
+            animation: pulse-dot 2s infinite;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.3; transform: scale(0.6); }
+        }
+
+        .register-link {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: color 0.3s ease;
+            background: none;
+            border: none;
+            font-family: inherit;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            font-weight: 600;
+        }
+
+        .register-link:hover {
+            color: #88CCFF;
+            text-shadow: 0 0 15px rgba(136, 204, 255, 0.3);
+        }
+
+        .chips-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .chip {
+            background: rgba(0, 40, 70, 0.5);
+            padding: 6px 16px;
+            border-radius: 40px;
+            font-size: 0.55rem;
+            color: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(0, 180, 255, 0.1);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-weight: 600;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(12px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: linear-gradient(145deg, rgba(5, 12, 24, 0.98), rgba(10, 22, 40, 0.95));
+            border-radius: 28px;
+            padding: 2.5rem;
+            max-width: 420px;
+            width: 90%;
+            border: 1px solid rgba(0, 180, 255, 0.15);
+            box-shadow: 0 30px 80px rgba(0,0,0,0.8);
+        }
+
+        .modal-content h3 { color: #00B4FF; font-size: 1.4rem; text-align: center; margin-bottom: 4px; font-weight: 700; text-shadow: 0 0 20px rgba(0, 180, 255, 0.3); }
+        .modal-content p { color: rgba(255, 255, 255, 0.4); font-size: 0.75rem; text-align: center; margin-bottom: 1.8rem; }
+        .modal-content input {
+            width: 100%;
+            padding: 14px 18px;
+            margin: 8px 0;
+            background: rgba(0, 10, 25, 0.8);
+            border: 2px solid rgba(0, 180, 255, 0.15);
+            border-radius: 12px;
+            color: #E0F0FF;
+            font-size: 0.95rem;
+            font-family: 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+            transition: all 0.3s;
+            outline: none;
+            font-weight: 600;
+        }
+        .modal-content input:focus { border-color: #00B4FF; box-shadow: 0 0 25px rgba(0, 180, 255, 0.05); }
+        .modal-buttons { display: flex; gap: 12px; margin-top: 1.8rem; }
+        .modal-buttons button { flex: 1; padding: 14px; border-radius: 12px; cursor: pointer; font-weight: 700; transition: all 0.3s ease; font-size: 0.85rem; letter-spacing: 1px; border: none; }
+        .btn-modal-register { background: linear-gradient(135deg, #0033FF, #00D4FF); color: white; box-shadow: 0 0 20px rgba(0, 100, 255, 0.3); }
+        .btn-modal-register:hover { transform: translateY(-2px); box-shadow: 0 0 40px rgba(0, 100, 255, 0.4); }
+        .btn-modal-cancel { background: transparent; border: 1px solid rgba(255, 68, 102, 0.25); color: #FF4466; }
+        .btn-modal-cancel:hover { border-color: #FF4466; background: rgba(255, 68, 102, 0.05); }
+        .success-message { color: #4CAF50; font-size: 0.75rem; margin-top: 8px; text-align: center; font-weight: 600; }
+
+        @media (max-width: 992px) {
+            .login-wrapper { flex-direction: column; max-width: 500px; border-radius: 32px; margin: 15px 0; }
+            .info-panel { padding: 40px 25px; text-align: center; border-right: none; border-bottom: 1px solid rgba(0, 180, 255, 0.05); }
+            .info-panel .slogan { border-left: none; padding-left: 0; text-align: center; }
+            .form-panel { padding: 30px 25px; }
+            .form-footer { flex-direction: column; align-items: stretch; text-align: center; }
+            .chips-row { justify-content: center; }
+        }
+
+        @media (max-width: 480px) {
+            .info-panel h1 { font-size: 2.2rem; }
+            .shield { width: 180px; height: 180px; }
+            .form-panel h2 { font-size: 1.3rem; }
+            .login-wrapper { border-radius: 24px; }
+            .info-panel, .form-panel { padding: 20px 16px; }
+            .input-group input { padding: 12px 14px; font-size: 0.9rem; }
+            .btn-login { padding: 14px; font-size: 0.9rem; }
+            .modal-content { padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-image"></div>
+    <div class="overlay"></div>
+
+    <div class="particles">
+        <div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div>
+        <div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div>
+        <div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div>
+    </div>
+
+    <div class="login-wrapper">
+
+        <div class="info-panel">
+            <!-- === LOGOTIPO === -->
+            <img src="/static/logo_shield.png" class="shield" alt="Guardian Logo" />
+            
+            <h1>GUARDIAN</h1>
+            <div class="subtitle">Protección avanzada para tu ecosistema digital.</div>
+            <div class="slogan">"No estás solo. Tu información tiene un Guardián."</div>
+        </div>
+
+        <div class="form-panel">
+            <h2>Acceso al Sistema</h2>
+            <div class="form-sub">Ingresa tus credenciales de seguridad</div>
+
+            <form id="loginForm">
+                <div class="input-group">
+                    <label>📧 Correo electrónico</label>
+                    <input type="email" id="email" placeholder="admin@guardian.com" required autocomplete="email">
+                </div>
+                <div class="input-group">
+                    <label>🔒 Contraseña</label>
+                    <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+
+                <button type="submit" class="btn-login">Acceder al sistema</button>
+                <div id="loginError" class="error"></div>
+            </form>
+
+            <div class="form-footer">
+                <div class="security-badge"><span class="dot"></span>Conexión Segura · TLS 1.3</div>
+                <button class="register-link" onclick="abrirModalRegistro()">📝 ¿No tienes cuenta? Regístrate</button>
+            </div>
+
+            <div class="chips-row">
+                <span class="chip">Protección</span><span class="chip">Integridad</span><span class="chip">Confidencialidad</span><span class="chip">Monitoreo</span>
+            </div>
+            <div class="chips-row" style="margin-top: 4px;">
+                <span class="chip">Proteger</span><span class="chip">Prevenir</span><span class="chip">Preservar</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalRegistro" class="modal">
+        <div class="modal-content">
+            <h3>📝 Crear Cuenta</h3><p>Regístrate para proteger tu información</p>
+            <input type="text" id="regNombre" placeholder="Nombre completo">
+            <input type="email" id="regEmail" placeholder="Correo electrónico">
+            <input type="password" id="regPassword" placeholder="Contraseña (mínimo 6 caracteres)">
+            <input type="password" id="regConfirmPassword" placeholder="Confirmar contraseña">
+            <div id="registerError" class="error"></div><div id="registerSuccess" class="success-message"></div>
+            <div class="modal-buttons">
+                <button class="btn-modal-register" onclick="registrarUsuario()">Registrarse</button>
+                <button class="btn-modal-cancel" onclick="cerrarModal('modalRegistro')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalVerificacion" class="modal">
+        <div class="modal-content">
+            <h3>📧 Verifica tu correo</h3>
+            <p id="verificacionMensaje">Debes verificar tu correo antes de iniciar sesión.</p>
+            <div class="modal-buttons">
+                <button class="btn-modal-register" id="btnReenviarVerificacion">🔄 Reenviar correo</button>
+                <button class="btn-modal-cancel" onclick="cerrarModal('modalVerificacion')">Cerrar</button>
+            </div>
+            <div id="verificacionError" class="error"></div><div id="verificacionSuccess" class="success-message"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin + '/api';
+        let pendingEmail = null;
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const loginError = document.getElementById('loginError');
+            
+            loginError.textContent = '🔄 Conectando...';
+            
+            try {
+                // ✅ 1. Ruta corregida a /auth/login
+                const response = await fetch(`${API_URL}/auth/login`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ email, password }) 
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    // ✅ 2. Guardar el token JWT
+                    localStorage.setItem('user_email', email);
+                    localStorage.setItem('user_rol', data.usuario.rol || 'user');
+                    localStorage.setItem('token', data.token); 
+                    
+                    window.location.href = 'dashboard.html';
+                } else {
+                    if (data.need_verification) {
+                        pendingEmail = email;
+                        document.getElementById('verificacionMensaje').textContent = data.message || 'Debes verificar tu correo antes de iniciar sesión.';
+                        document.getElementById('verificacionError').textContent = '';
+                        document.getElementById('verificacionSuccess').textContent = '';
+                        document.getElementById('modalVerificacion').style.display = 'flex';
+                        loginError.textContent = '';
+                    } else {
+                        loginError.textContent = '❌ ' + (data.message || 'Credenciales incorrectas');
+                    }
+                }
+            } catch (error) { 
+                loginError.textContent = '❌ Error de conexión con el servidor'; 
+                console.error(error);
+            }
+        });
+
+        document.getElementById('btnReenviarVerificacion').addEventListener('click', async () => {
+            if (!pendingEmail) return;
+            const errorDiv = document.getElementById('verificacionError');
+            const successDiv = document.getElementById('verificacionSuccess');
+            errorDiv.textContent = '';
+            successDiv.textContent = '';
+            try {
+                const response = await fetch(`${API_URL}/reenviar-verificacion`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: pendingEmail }) });
+                const data = await response.json();
+                if (data.success) { successDiv.textContent = '✅ ' + data.message; }
+                else { errorDiv.textContent = '❌ ' + (data.message || 'Error al reenviar'); }
+            } catch (error) { errorDiv.textContent = '❌ Error de conexión'; }
+        });
+
+        function abrirModalRegistro() {
+            document.getElementById('modalRegistro').style.display = 'flex';
+            document.getElementById('registerError').textContent = '';
+            document.getElementById('registerSuccess').textContent = '';
+        }
+        function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        async function registrarUsuario() {
+            const nombre = document.getElementById('regNombre').value;
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('regConfirmPassword').value;
+            const errorDiv = document.getElementById('registerError');
+            const successDiv = document.getElementById('registerSuccess');
+            errorDiv.textContent = '';
+            successDiv.textContent = '';
+            if (!email || !password) { errorDiv.textContent = '⚠️ Correo y contraseña son requeridos'; return; }
+            if (password !== confirmPassword) { errorDiv.textContent = '⚠️ Las contraseñas no coinciden'; return; }
+            if (password.length < 6) { errorDiv.textContent = '⚠️ La contraseña debe tener al menos 6 caracteres'; return; }
+            
+            try {
+                // ✅ 3. Ruta corregida a /auth/registro
+                const response = await fetch(`${API_URL}/auth/registro`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ email, password, nombre: nombre || email.split('@')[0] }) 
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    successDiv.textContent = '✅ ' + data.message;
+                    setTimeout(() => {
+                        cerrarModal('modalRegistro');
+                        document.getElementById('email').value = email;
+                        document.getElementById('password').value = '';
+                    }, 3000);
+                } else { errorDiv.textContent = '❌ ' + (data.message || 'Error al registrar'); }
+            } catch (error) { errorDiv.textContent = '❌ Error de conexión con el servidor'; }
+        }
+        window.onclick = function(event) {
+            if (event.target === document.getElementById('modalRegistro')) cerrarModal('modalRegistro');
+            if (event.target === document.getElementById('modalVerificacion')) cerrarModal('modalVerificacion');
+        };
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const form = document.getElementById('loginForm');
+                const submitBtn = form.querySelector('.btn-login');
+                if (document.activeElement === document.getElementById('email') || document.activeElement === document.getElementById('password')) {
+                    submitBtn.click();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

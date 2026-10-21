@@ -1,0 +1,23 @@
+# Entornos y secretos
+.env
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Ngrok
+ngrok_url.txt
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos compilados de Go
+go_worker/*.exe
+go_worker/*.bin

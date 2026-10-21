@@ -1,0 +1,2923 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Guardian · Panel de Control</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #05070C;
+            --panel: rgba(11, 18, 28, 0.5);
+            --panel-2: rgba(16, 26, 40, 0.62);
+            --line: rgba(148, 197, 255, 0.08);
+            --line-strong: rgba(148, 197, 255, 0.16);
+            --signal: #22D3EE;
+            --signal-2: #3B82F6;
+            --ok: #34D399;
+            --warn: #FBBF24;
+            --bad: #F87171;
+            --ink: #E7EEF7;
+            --ink-2: rgba(231, 238, 247, 0.58);
+            --ink-3: rgba(231, 238, 247, 0.32);
+            --mono: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+        }
+
+        body { font-family: var(--sans); background: var(--bg); color: var(--ink); height: 100vh; overflow: hidden; position: relative; }
+
+        .bg-image {
+            position: fixed; top: -5%; left: -5%; width: 110%; height: 110%; z-index: 0;
+            background-image: url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=1920&q=80');
+            background-size: cover; background-position: center;
+            filter: brightness(0.8) saturate(1.1);
+            animation: slowZoom 28s ease-in-out infinite alternate;
+        }
+        @keyframes slowZoom { 0% { transform: scale(1); } 100% { transform: scale(1.06); } }
+        .bg-image::after {
+            content: ''; position: absolute; inset: 0;
+            background:
+                linear-gradient(rgba(34, 211, 238, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
+            background-size: 42px 42px, 42px 42px;
+        }
+
+        .overlay { position: fixed; inset: 0; z-index: 1; background: radial-gradient(ellipse at 50% 50%, rgba(5, 7, 12, 0.15) 0%, rgba(5, 7, 12, 0.55) 100%); pointer-events: none; }
+
+        .particles { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+        .particle { position: absolute; width: 2px; height: 2px; background: var(--signal); box-shadow: 0 0 6px 1px rgba(34, 211, 238, 0.6); border-radius: 50%; animation: float-particle 26s infinite linear; }
+        .particle:nth-child(1) { left: 5%; animation-duration: 22s; }
+        .particle:nth-child(2) { left: 15%; animation-duration: 26s; animation-delay: 2s; }
+        .particle:nth-child(3) { left: 25%; animation-duration: 20s; animation-delay: 4s; }
+        .particle:nth-child(4) { left: 35%; animation-duration: 28s; animation-delay: 1s; }
+        .particle:nth-child(5) { left: 45%; animation-duration: 24s; animation-delay: 3s; }
+        .particle:nth-child(6) { left: 55%; animation-duration: 21s; animation-delay: 5s; }
+        .particle:nth-child(7) { left: 65%; animation-duration: 25s; animation-delay: 2s; }
+        .particle:nth-child(8) { left: 75%; animation-duration: 23s; animation-delay: 4s; }
+        .particle:nth-child(9) { left: 85%; animation-duration: 27s; animation-delay: 0s; }
+        .particle:nth-child(10) { left: 95%; animation-duration: 20s; animation-delay: 3s; }
+        @keyframes float-particle {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            10% { opacity: 0.9; } 90% { opacity: 0.9; }
+            100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+        }
+
+        .app { position: relative; z-index: 2; display: flex; height: 100vh; width: 100%; padding: 18px; gap: 18px; }
+
+        .sidebar {
+            width: 260px; min-width: 260px;
+            background: rgba(10, 18, 32, 0.55);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-radius: 32px; padding: 28px 18px;
+            display: flex; flex-direction: column;
+            border: 1px solid var(--line);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            transition: all 0.4s ease; overflow-y: auto;
+        }
+        .sidebar:hover { border-color: var(--line-strong); }
+        .sidebar::-webkit-scrollbar { width: 3px; }
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(34, 211, 238, 0.15); border-radius: 10px; }
+
+        .sidebar-logo { text-align: center; padding-bottom: 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); margin-bottom: 28px; }
+        .sidebar-logo .logo-icon { width: 140px; height: 140px; object-fit: contain; display: block; margin: 0 auto 2px auto; filter: drop-shadow(0 0 40px rgba(34, 211, 238, 0.45)); }
+        .sidebar-logo .logo-title {
+            font-family: var(--mono); font-size: 1.4rem; font-weight: 800; letter-spacing: 4px;
+            background: linear-gradient(135deg, var(--signal-2), var(--signal));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .sidebar-logo .logo-sub { font-family: var(--mono); font-size: 0.65rem; color: rgba(255, 255, 255, 0.5); letter-spacing: 4px; text-transform: uppercase; margin-top: 4px; font-weight: 600; }
+
+        .nav-item {
+            display: flex; align-items: center; gap: 14px; padding: 12px 18px;
+            border-radius: 16px; color: rgba(255, 255, 255, 0.4); cursor: pointer;
+            transition: all 0.3s ease; font-family: var(--mono); font-size: 0.85rem;
+            font-weight: 500; margin-bottom: 2px; position: relative;
+        }
+        .nav-item:hover { background: rgba(34, 211, 238, 0.06); color: #FFFFFF; transform: translateX(4px); }
+        .nav-item.active { background: rgba(34, 211, 238, 0.1); color: var(--signal); box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.08); }
+        .nav-item .icon { font-size: 1.2rem; width: 28px; text-align: center; flex-shrink: 0; }
+
+        .nav-toggle {
+            cursor: pointer; padding: 8px 16px; border-radius: 12px;
+            color: rgba(255, 255, 255, 0.3); font-family: var(--mono); font-size: 0.75rem;
+            transition: all 0.3s ease; display: flex; align-items: center; justify-content: space-between;
+        }
+        .nav-toggle:hover { background: rgba(255, 255, 255, 0.03); color: #FFFFFF; }
+        .sub-nav { margin-left: 16px; padding-left: 12px; border-left: 1px solid rgba(255, 255, 255, 0.04); display: none; }
+        .sub-nav.show { display: block; }
+        .sub-item {
+            display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+            border-radius: 10px; color: rgba(255, 255, 255, 0.3); cursor: pointer;
+            transition: all 0.3s ease; font-family: var(--mono); font-size: 0.78rem;
+        }
+        .sub-item:hover { background: rgba(34, 211, 238, 0.04); color: #FFFFFF; }
+        .sub-item.active { color: var(--signal); }
+
+        .sidebar-footer { margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.04); }
+        .user-card {
+            display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+            border-radius: 16px; background: rgba(34, 211, 238, 0.04); transition: background 0.3s;
+        }
+        .user-card:hover { background: rgba(34, 211, 238, 0.07); }
+        .user-avatar {
+            width: 40px; height: 40px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--signal-2), var(--signal));
+            display: flex; align-items: center; justify-content: center;
+            font-family: var(--mono); font-size: 1rem; font-weight: 700; color: #FFFFFF; flex-shrink: 0;
+        }
+        .user-info { flex: 1; min-width: 0; }
+        .user-name { font-family: var(--mono); font-size: 0.85rem; font-weight: 600; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .user-email { font-family: var(--mono); font-size: 0.65rem; color: rgba(255, 255, 255, 0.3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .logout-btn {
+            padding: 6px 12px; border-radius: 10px;
+            border: 1px solid rgba(248, 113, 113, 0.15); color: var(--bad);
+            font-family: var(--mono); font-size: 0.6rem; cursor: pointer;
+            transition: all 0.3s ease; background: transparent; flex-shrink: 0;
+        }
+        .logout-btn:hover { background: rgba(248, 113, 113, 0.08); border-color: rgba(248, 113, 113, 0.3); }
+
+        .main-content { flex: 1; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; padding-right: 4px; }
+        .main-content::-webkit-scrollbar { width: 4px; }
+        .main-content::-webkit-scrollbar-track { background: transparent; }
+        .main-content::-webkit-scrollbar-thumb { background: rgba(34, 211, 238, 0.18); border-radius: 10px; }
+
+        .top-bar {
+            position: relative; background: var(--panel);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border-radius: 12px; padding: 16px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+            border: 1px solid var(--line); overflow: hidden;
+        }
+        .top-bar::before {
+            content: ''; position: absolute; top: 0; left: -30%; width: 30%; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--signal), transparent);
+            animation: scanLine 5s linear infinite;
+        }
+        @keyframes scanLine { to { left: 130%; } }
+        .page-title h1 { font-family: var(--mono); font-size: 1.15rem; font-weight: 700; color: var(--ink); letter-spacing: 0.5px; }
+        .page-title p { font-family: var(--mono); font-size: 0.68rem; color: var(--ink-3); margin-top: 3px; letter-spacing: 0.3px; }
+        .top-actions { display: flex; gap: 8px; align-items: center; }
+        .btn-icon {
+            width: 38px; height: 38px; border-radius: 8px;
+            background: rgba(255, 255, 255, 0.02); border: 1px solid var(--line);
+            color: var(--ink-2); cursor: pointer; transition: all 0.2s ease;
+            display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
+        }
+        .btn-icon:hover { background: rgba(34, 211, 238, 0.08); color: var(--signal); border-color: rgba(34, 211, 238, 0.3); }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+
+        .stat-card {
+            position: relative; background: var(--panel);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border-radius: 10px; padding: 20px 22px; border: 1px solid var(--line);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); cursor: default;
+        }
+        .stat-card::before, .stat-card::after {
+            content: ''; position: absolute; width: 10px; height: 10px;
+            border: 1.5px solid var(--signal); opacity: 0.55; transition: opacity 0.3s ease;
+        }
+        .stat-card::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+        .stat-card::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+        .stat-card:hover { transform: translateY(-3px); border-color: var(--line-strong); background: var(--panel-2); }
+        .stat-card:hover::before, .stat-card:hover::after { opacity: 1; }
+        .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .stat-title { font-family: var(--mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--ink-3); font-weight: 600; }
+        .stat-icon { font-size: 1.1rem; opacity: 0.6; }
+        .stat-value { font-family: var(--mono); font-size: 1.8rem; font-weight: 700; color: var(--ink); margin-bottom: 4px; letter-spacing: -0.5px; }
+        .stat-value .status-active { font-family: var(--mono); font-size: 0.72rem; font-weight: 600; color: var(--ok); background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.25); padding: 3px 14px; border-radius: 20px; display: inline-block; }
+        .stat-detail { font-family: var(--mono); font-size: 0.74rem; color: var(--ink-3); }
+        .stat-detail span { color: var(--ink-2); }
+
+        .map-section { background: var(--panel); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 12px; padding: 18px 22px; border: 1px solid var(--line); transition: border-color 0.3s ease; }
+        .map-section:hover { border-color: var(--line-strong); }
+        .map-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .map-header h3 { font-family: var(--mono); font-size: 0.82rem; font-weight: 600; color: var(--ink); letter-spacing: 0.3px; }
+        .btn-outline {
+            padding: 6px 16px; border-radius: 20px; border: 1px solid var(--line-strong);
+            background: rgba(255, 255, 255, 0.02); color: var(--ink-2);
+            font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.3px;
+            cursor: pointer; transition: all 0.2s ease; font-weight: 500;
+        }
+        .btn-outline:hover { background: rgba(34, 211, 238, 0.08); border-color: var(--signal); color: var(--ink); }
+        .map-container { height: 280px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+        .map-container #mapInicio { height: 100%; width: 100%; }
+        .direccion-card { margin-top: 12px; padding: 12px 16px; background: rgba(0, 0, 0, 0.25); border-radius: 8px; border-left: 2px solid var(--signal); color: var(--ink-2); font-family: var(--mono); font-size: 0.78rem; }
+
+        .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.85); }
+        .leaflet-container { background: #0a0f1a !important; }
+
+        .logs-section { background: var(--panel); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 12px; padding: 18px 22px; border: 1px solid var(--line); transition: border-color 0.3s ease; }
+        .logs-section:hover { border-color: var(--line-strong); }
+        .logs-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .logs-header h3 { font-family: var(--mono); font-size: 0.82rem; font-weight: 600; color: var(--ink); }
+        .logs-header span { font-family: var(--mono); font-size: 0.62rem; color: var(--ink-3); }
+        .logs-list { max-height: 180px; overflow-y: auto; }
+        .logs-list::-webkit-scrollbar { width: 3px; }
+        .logs-list::-webkit-scrollbar-thumb { background: rgba(34, 211, 238, 0.15); border-radius: 10px; }
+        .log-item {
+            display: flex; align-items: center; gap: 12px; padding: 7px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+            font-family: var(--mono); font-size: 0.75rem; color: var(--ink-2);
+        }
+        .log-item .log-time { font-size: 0.64rem; color: var(--ink-3); min-width: 70px; }
+        .log-item .log-icon { font-size: 0.85rem; opacity: 0.55; }
+        .log-item .log-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .admin-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.78rem; }
+        .admin-table th { text-align: left; padding: 11px 8px; color: var(--ink-3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.64rem; border-bottom: 1px solid var(--line-strong); }
+        .admin-table td { padding: 10px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.03); color: var(--ink-2); }
+        .admin-table .btn-small { padding: 4px 11px; border-radius: 6px; border: none; font-family: var(--mono); font-size: 0.66rem; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-right: 4px; }
+        .btn-small.edit { background: rgba(34, 211, 238, 0.1); color: var(--signal); }
+        .btn-small.edit:hover { background: rgba(34, 211, 238, 0.2); }
+        .btn-small.delete { background: rgba(248, 113, 113, 0.1); color: var(--bad); }
+        .btn-small.delete:hover { background: rgba(248, 113, 113, 0.2); }
+        .btn-small.password { background: rgba(251, 191, 36, 0.1); color: var(--warn); }
+        .btn-small.password:hover { background: rgba(251, 191, 36, 0.2); }
+        .admin-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+        .admin-config-form input, .admin-config-form select { width: 100%; padding: 11px; margin-bottom: 12px; border-radius: 8px; border: 1px solid var(--line); background: rgba(0, 0, 0, 0.3); color: var(--ink); font-family: var(--mono); font-size: 0.82rem; }
+        .admin-config-form input:focus, .admin-config-form select:focus { outline: none; border-color: var(--signal); }
+
+        .filtros-container { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+        .filtros-container select, .filtros-container input { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: rgba(0, 0, 0, 0.3); color: var(--ink); font-family: var(--mono); font-size: 0.76rem; }
+        .filtros-container select:focus, .filtros-container input:focus { outline: none; border-color: var(--signal); }
+        .filtros-container button { padding: 8px 16px; border-radius: 8px; border: 1px solid transparent; background: var(--signal); color: #04141C; cursor: pointer; font-family: var(--mono); font-weight: 700; font-size: 0.76rem; transition: all 0.2s; }
+        .filtros-container button:hover { box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.2); }
+
+        .modal { display: none; position: fixed; inset: 0; background: rgba(2, 4, 8, 0.72); backdrop-filter: blur(10px); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content {
+            position: relative; background: linear-gradient(160deg, rgba(11, 18, 28, 0.97), rgba(6, 9, 15, 0.99));
+            border-radius: 14px; padding: 2rem; max-width: 460px; width: 90%;
+            border: 1px solid var(--line-strong); border-top: 2px solid var(--signal);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6); animation: modalFade 0.25s ease; font-family: var(--sans);
+        }
+        @keyframes modalFade { from { opacity: 0; transform: scale(0.97) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .modal-content h3 { font-family: var(--mono); color: var(--ink); font-size: 1.05rem; text-align: center; margin-bottom: 4px; font-weight: 700; letter-spacing: 0.3px; }
+        .modal-content p { color: var(--ink-3); font-size: 0.78rem; text-align: center; margin-bottom: 1.4rem; }
+        .modal-content input, .modal-content select { width: 100%; padding: 13px 16px; margin: 7px 0; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); font-size: 0.9rem; font-family: var(--sans); outline: none; transition: border-color 0.2s; }
+        .modal-content input:focus, .modal-content select:focus { border-color: var(--signal); }
+        .modal-buttons { display: flex; gap: 10px; margin-top: 1.3rem; }
+        .modal-buttons button { flex: 1; padding: 13px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s ease; font-size: 0.82rem; border: none; font-family: var(--sans); }
+        .btn-primary { background: var(--signal); color: #04141C; font-weight: 700; }
+        .btn-primary:hover { box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.22); }
+        .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+        .btn-danger { background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.25); color: var(--bad); }
+        .btn-danger:hover { background: rgba(248, 113, 113, 0.18); border-color: rgba(248, 113, 113, 0.4); }
+        .btn-success { background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.25); color: var(--ok); }
+        .btn-success:hover { background: rgba(52, 211, 153, 0.25); }
+        .btn-secondary { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line-strong); color: var(--ink); }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
+        .error { color: var(--bad); font-size: 0.76rem; text-align: center; margin-top: 8px; font-family: var(--mono); }
+        .success-message { color: var(--ok); font-size: 0.76rem; text-align: center; margin-top: 8px; font-family: var(--mono); }
+        .checkbox-group { display: flex; align-items: center; gap: 10px; margin: 8px 0; color: var(--ink-2); font-size: 0.85rem; }
+        .checkbox-group input[type="checkbox"] { width: auto; margin: 0; accent-color: var(--signal); }
+
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-family: var(--mono); font-size: 0.62rem; font-weight: 600; }
+        .badge-success { background: rgba(52, 211, 153, 0.15); color: var(--ok); }
+        .badge-danger { background: rgba(248, 113, 113, 0.15); color: var(--bad); }
+        .badge-warning { background: rgba(251, 191, 36, 0.15); color: var(--warn); }
+
+        .file-upload {
+            border: 1.5px dashed var(--line-strong); border-radius: 10px; padding: 28px;
+            text-align: center; color: var(--ink-3); cursor: pointer; transition: all 0.2s;
+            font-family: var(--mono); font-size: 0.82rem;
+        }
+        .file-upload:hover { border-color: var(--signal); background: rgba(34, 211, 238, 0.03); color: var(--ink-2); }
+        .file-upload input[type="file"] { display: none; }
+
+        #comandoInput:focus { border-color: var(--signal) !important; box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15); }
+        #terminalContainer::-webkit-scrollbar { width: 6px; }
+        #terminalContainer::-webkit-scrollbar-thumb { background: rgba(34, 211, 238, 0.25); border-radius: 10px; }
+        #terminalContainer::-webkit-scrollbar-track { background: rgba(0,0,0,0.15); }
+
+        #chatMessages::-webkit-scrollbar { width: 4px; }
+        #chatMessages::-webkit-scrollbar-thumb { background: rgba(34, 211, 238, 0.2); border-radius: 10px; }
+
+        @media (max-width: 992px) {
+            .sidebar { width: 80px; min-width: 80px; padding: 18px 8px; border-radius: 24px; }
+            .sidebar .logo-title, .sidebar .logo-sub, .sidebar .nav-item span:last-child,
+            .sidebar .sub-item span:last-child, .sidebar .user-info, .sidebar .logout-btn,
+            .sidebar .nav-toggle span:last-child { display: none; }
+            .sidebar .nav-item { justify-content: center; padding: 12px; }
+            .sidebar .nav-toggle { justify-content: center; padding: 8px; }
+            .sidebar .user-card { justify-content: center; padding: 8px; }
+            .sidebar .user-avatar { width: 36px; height: 36px; font-size: 0.9rem; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 600px) {
+            .app { padding: 10px; gap: 10px; }
+            .sidebar { width: 60px; min-width: 60px; padding: 12px 4px; border-radius: 18px; }
+            .sidebar-logo .logo-icon { width: 100px; height: 100px; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .top-bar { padding: 12px 16px; flex-wrap: wrap; gap: 6px; }
+            .top-bar .page-title h1 { font-size: 0.95rem; }
+            .map-container { height: 180px; }
+            .stat-card .stat-value { font-size: 1.4rem; }
+            .modal-content { padding: 1.4rem; }
+            .admin-table { font-size: 0.66rem; }
+            .admin-table th, .admin-table td { padding: 6px 4px; }
+            .filtros-container { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-image"></div>
+    <div class="overlay"></div>
+    <div class="particles">
+        <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+        <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+        <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+        <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+        <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+    </div>
+
+    <div class="app">
+
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <img src="/static/logo_shield.png" class="logo-icon" alt="Guardian Logo" />
+                <div class="logo-title">GUARDIAN</div>
+                <div class="logo-sub">Digital Security</div>
+            </div>
+
+            <div class="nav-item active" data-view="inicio">
+                <span class="icon">🏠</span>
+                <span>Inicio</span>
+            </div>
+
+            <div class="nav-toggle" id="toggleEquipos">
+                <span>💻 Equipos</span>
+                <span>▼</span>
+            </div>
+            <div class="sub-nav show" id="subEquipos">
+                <div class="sub-item" data-view="acceso_remoto">🔌 Acceso remoto</div>
+                <div class="sub-item" data-view="gps">📍 GPS</div>
+                <div class="sub-item" data-view="syslogs">📋 Registros del sistema</div>
+                <div class="sub-item" data-view="cifrado">🔐 Cifrado</div>
+            </div>
+
+            <div class="nav-toggle" id="toggleConfig">
+                <span>⚙️ Configuración</span>
+                <span>▼</span>
+            </div>
+            <div class="sub-nav" id="subConfig">
+                <div class="sub-item" data-view="cuenta">👤 Cuenta</div>
+                <div class="sub-item" data-view="registros">📝 Registros</div>
+                <div class="sub-item" data-view="equipos_lista">🖥️ Equipos</div>
+                <div class="sub-item" data-view="ip_puertos">🌐 IP y puertos</div>
+            </div>
+
+            <div class="nav-item" data-view="herramientas_remotas">
+                <span class="icon">🛠️</span>
+                <span>Herramientas remotas</span>
+            </div>
+            <div class="nav-item" data-view="accesos">
+                <span class="icon">📡</span>
+                <span>Accesos</span>
+            </div>
+            <div class="nav-item" data-view="estadisticas">
+                <span class="icon">📊</span>
+                <span>Estadísticas</span>
+            </div>
+
+            <div class="nav-toggle" id="toggleAdmin" style="display: none;">
+                <span>🔐 Administración</span>
+                <span>▼</span>
+            </div>
+            <div class="sub-nav" id="subAdmin">
+                <div class="sub-item" data-view="admin_panel">👥 Panel Admin</div>
+                <div class="sub-item" data-view="dashboard_admin">📈 Dashboard</div>
+                <div class="sub-item" data-view="sesiones">🖥️ Sesiones</div>
+                <div class="sub-item" data-view="auditoria">📋 Auditoría</div>
+                <div class="sub-item" data-view="backup">💾 Backup</div>
+                <div class="sub-item" data-view="politicas">🛡️ Políticas</div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="user-card">
+                    <div class="user-avatar" id="userAvatar"></div>
+                    <div class="user-info">
+                        <div class="user-name" id="userName">Usuario</div>
+                        <div class="user-email" id="userEmail">admin@guardian.com</div>
+                    </div>
+                    <button class="logout-btn" onclick="cerrarSesion()">Salir</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content" id="mainContent">
+            <div id="vistaContainer"></div>
+        </div>
+
+    </div>
+
+    <!-- MODALES -->
+    <div id="modalCambiarPassword" class="modal">
+        <div class="modal-content">
+            <h3>🔑 Cambiar Contraseña</h3>
+            <p>Ingresa tu contraseña actual y la nueva</p>
+            <input type="password" id="oldPassword" placeholder="Contraseña actual" />
+            <input type="password" id="newPassword" placeholder="Nueva contraseña" />
+            <div class="modal-buttons">
+                <button class="btn-primary" id="btnCambiarPass">Actualizar</button>
+                <button class="btn-danger" onclick="cerrarModal('modalCambiarPassword')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalAdminPassword" class="modal">
+        <div class="modal-content">
+            <h3>🔑 Cambiar Contraseña (Admin)</h3>
+            <p>Establece una nueva contraseña para este usuario</p>
+            <input type="password" id="adminNewPassword" placeholder="Nueva contraseña (mínimo 6 caracteres)" />
+            <input type="password" id="adminConfirmPassword" placeholder="Confirmar contraseña" />
+            <div id="adminPassError" class="error"></div>
+            <div id="adminPassSuccess" class="success-message"></div>
+            <div class="modal-buttons">
+                <button class="btn-primary" id="btnAdminCambiarPass">Actualizar</button>
+                <button class="btn-danger" onclick="cerrarModal('modalAdminPassword')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalAdminEdit" class="modal">
+        <div class="modal-content">
+            <h3>✏️ Editar Usuario</h3>
+            <p>Modifica los datos de este usuario</p>
+            <input type="text" id="editNombre" placeholder="Nombre completo" />
+            <input type="email" id="editEmail" placeholder="Correo electrónico" disabled />
+            <select id="editRol">
+                <option value="user">Usuario</option>
+                <option value="admin">Administrador</option>
+            </select>
+            <div id="editError" class="error"></div>
+            <div id="editSuccess" class="success-message"></div>
+            <div class="modal-buttons">
+                <button class="btn-primary" id="btnAdminEdit">Guardar cambios</button>
+                <button class="btn-danger" onclick="cerrarModal('modalAdminEdit')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalConfirmDelete" class="modal">
+        <div class="modal-content">
+            <h3>⚠️ Confirmar Eliminación</h3>
+            <p>¿Estás seguro de que quieres eliminar a <span id="deleteUserName" style="color:#FF4466;"></span>?</p>
+            <div class="modal-buttons">
+                <button class="btn-danger" id="btnConfirmDelete">Eliminar</button>
+                <button class="btn-primary" onclick="cerrarModal('modalConfirmDelete')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalPoliticas" class="modal">
+        <div class="modal-content">
+            <h3>🛡️ Políticas de Seguridad</h3>
+            <p>Configura los requisitos de contraseña y seguridad</p>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:0.7rem;color:rgba(255,255,255,0.3);">Longitud mínima</label>
+                <input type="number" id="polLongitud" min="6" max="20" value="8" />
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="polMayuscula" checked />
+                <label for="polMayuscula">Requerir mayúscula</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="polNumero" checked />
+                <label for="polNumero">Requerir número</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="polEspecial" checked />
+                <label for="polEspecial">Requerir carácter especial</label>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:0.7rem;color:rgba(255,255,255,0.3);">Intentos máximos fallidos</label>
+                <input type="number" id="polIntentos" min="3" max="10" value="5" />
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:0.7rem;color:rgba(255,255,255,0.3);">Tiempo de bloqueo (minutos)</label>
+                <input type="number" id="polBloqueo" min="5" max="120" value="30" />
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="pol2FA" />
+                <label for="pol2FA">Obligar autenticación de dos factores (2FA)</label>
+            </div>
+            <div id="polError" class="error"></div>
+            <div id="polSuccess" class="success-message"></div>
+            <div class="modal-buttons">
+                <button class="btn-primary" id="btnGuardarPoliticas">Guardar Políticas</button>
+                <button class="btn-danger" onclick="cerrarModal('modalPoliticas')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalRestaurar" class="modal">
+        <div class="modal-content">
+            <h3>💾 Restaurar Backup</h3>
+            <p>Selecciona un archivo JSON para restaurar</p>
+            <div class="file-upload" onclick="document.getElementById('restoreFile').click()">
+                 📁 Haz clic para seleccionar archivo
+                <input type="file" id="restoreFile" accept=".json" />
+            </div>
+            <div style="margin-top:10px;">
+                <label style="font-size:0.7rem;color:rgba(255,255,255,0.3);">Colección destino</label>
+                <select id="restoreCollection">
+                    <option value="usuarios">usuarios</option>
+                    <option value="logs">logs</option>
+                    <option value="dispositivos">dispositivos</option>
+                    <option value="configuracion">configuración</option>
+                    <option value="rastroe">rastreo</option>
+                    <option value="archivos_cifrados">archivos_cifrados</option>
+                </select>
+            </div>
+            <div id="restoreError" class="error"></div>
+            <div id="restoreSuccess" class="success-message"></div>
+            <div class="modal-buttons">
+                <button class="btn-primary" id="btnRestaurarBackup">Restaurar</button>
+                <button class="btn-danger" onclick="cerrarModal('modalRestaurar')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // CONFIGURACIÓN GLOBAL Y JWT (SEGURIDAD)
+        // ==========================================
+        const API_URL = window.location.origin + '/api';
+        console.log('🔗 API_URL:', API_URL);
+
+        const userEmail = localStorage.getItem('user_email');
+        const userRol = localStorage.getItem('user_rol') || 'user';
+        const userToken = localStorage.getItem('token'); // <--- TOKEN JWT
+
+        if (!userEmail || !userToken) window.location.href = 'login.html';
+        const userName = userEmail.split('@')[0];
+
+        document.getElementById('userName').textContent = userName;
+        document.getElementById('userEmail').textContent = userEmail;
+        document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
+
+        if (userRol === 'admin') {
+            document.getElementById('toggleAdmin').style.display = 'flex';
+            document.getElementById('subAdmin').classList.add('show');
+        } else {
+            document.getElementById('toggleAdmin').style.display = 'none';
+            document.getElementById('subAdmin').classList.remove('show');
+        }
+
+        let currentView = 'inicio';
+        let mapaInicio = null, marcadorInicio = null;
+        let mapaAccesos = null;
+        let marcadoresAccesos = [];
+        let intervalRastreo = null;
+        let currentSessionId = null;
+        let adminUserIdEditando = null;
+        let adminUserIdEliminar = null;
+        let adminUserIdPassword = null;
+        let adminTabActual = 'usuarios';
+        let chatSocket = null;
+        let chatConectado = false;
+
+        function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        function checkAdmin() {
+            if (userRol !== 'admin') {
+                alert('⛔ Acceso denegado: Se requieren permisos de administrador.');
+                loadView('inicio');
+                return false;
+            }
+            return true;
+        }
+
+        // ✅ FUNCIÓN MÁGICA: Inyecta el Token JWT en cada petición
+        async function apiFetch(endpoint, options = {}) {
+            options.headers = {
+                ...options.headers,
+                'Authorization': `Bearer ${userToken}`
+            };
+            const response = await fetch(endpoint, options);
+            if (response.status === 401) {
+                localStorage.clear();
+                window.location.href = 'login.html';
+            }
+            return response;
+        }
+
+        async function obtenerDireccion(lat, lon) {
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1&accept-language=es`);
+                const data = await res.json();
+                if (data.address) {
+                    const calle = data.address.road || '';
+                    const ciudad = data.address.city || data.address.town || '';
+                    return `${calle} ${ciudad}`.trim() || `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+                }
+            } catch (e) {}
+            return `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+        }
+
+        function cerrarSesion() {
+            localStorage.removeItem('user_email');
+            localStorage.removeItem('user_rol');
+            localStorage.removeItem('token'); // <-- Borrar token
+            window.location.href = 'login.html';
+        }
+
+        // ==========================================
+        // VISTAS
+        // ==========================================
+
+        function renderInicio() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title">
+                        <h1>🏠 Inicio</h1>
+                        <p>Panel de control y resumen del sistema</p>
+                    </div>
+                    <div class="top-actions">
+                        <button class="btn-icon" onclick="loadView('gps')" title="GPS">📍</button>
+                        <button class="btn-icon" onclick="loadView('herramientas_remotas')" title="Herramientas">🛠️</button>
+                    </div>
+                </div>
+                <div class="stats-grid" id="statsGridInicio"></div>
+                <div class="map-section">
+                    <div class="map-header">
+                        <h3>📍 Última ubicación conocida</h3>
+                        <button class="btn-outline" onclick="actualizarUbicacionManual()">🔄 Actualizar</button>
+                    </div>
+                    <div class="map-container"><div id="mapInicio"></div></div>
+                    <div class="direccion-card" id="direccionInicio">Cargando ubicación...</div>
+                </div>
+                <div class="logs-section">
+                    <div class="logs-header">
+                        <h3>📝 Registro de actividad</h3>
+                        <span>Últimos 50 eventos</span>
+                    </div>
+                    <div class="logs-list" id="logsListInicio"></div>
+                </div>
+            `;
+        }
+
+        function renderAccesoRemoto() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title"><h1>🔌 Acceso Remoto (SSH)</h1><p>Consola de comandos remota</p></div>
+                    <div class="top-actions"><button class="btn-icon" onclick="loadView('inicio')">🏠</button></div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1.6fr; gap:18px;">
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">⚙️ Configuración SSH</span></div>
+                        <div style="margin-top:12px;">
+                            <input type="text" id="remoteHost" placeholder="IP remota (ej: 192.168.1.100)" style="width:100%;padding:12px;border-radius:8px;border:1px solid var(--line);background:rgba(0,0,0,0.3);color:white;margin-bottom:8px;font-family:inherit;font-size:0.85rem;">
+                            <input type="number" id="remotePort" placeholder="Puerto" value="22" style="width:100%;padding:12px;border-radius:8px;border:1px solid var(--line);background:rgba(0,0,0,0.3);color:white;margin-bottom:8px;font-family:inherit;font-size:0.85rem;">
+                            <input type="text" id="remoteUser" placeholder="Usuario" style="width:100%;padding:12px;border-radius:8px;border:1px solid var(--line);background:rgba(0,0,0,0.3);color:white;margin-bottom:8px;font-family:inherit;font-size:0.85rem;">
+                            <input type="password" id="remotePass" placeholder="Contraseña" style="width:100%;padding:12px;border-radius:8px;border:1px solid var(--line);background:rgba(0,0,0,0.3);color:white;margin-bottom:8px;font-family:inherit;font-size:0.85rem;">
+                            <button class="btn-primary" id="btnConectarSSH" style="width:100%;padding:14px;margin-bottom:8px;">🔌 Conectar</button>
+                            <button class="btn-danger" id="btnDesconectarSSH" style="width:100%;padding:10px;display:none;">🚪 Desconectar</button>
+                            <div id="sshStatus" style="margin-top:10px;font-size:0.78rem;color:var(--warn);font-family:var(--mono);padding:8px;border-radius:6px;background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.15);display:none;"></div>
+                            <div style="margin-top:14px; padding:10px; border-radius:8px; background:rgba(34,211,238,0.04); border:1px solid rgba(34,211,238,0.1); font-size:0.7rem; color:var(--ink-3); font-family:var(--mono); line-height:1.5;">
+                                <strong style="color:var(--signal);">💡 Comandos útiles:</strong><br>
+                                <span style="color:var(--ink-2);">Linux:</span> whoami, ls -la, uname -a, pwd<br>
+                                <span style="color:var(--ink-2);">Windows:</span> whoami, dir, hostname, ipconfig<br>
+                                <span style="color:var(--ink-2);">Consola:</span> clear, exit
+                            </div>
+                            
+                            <div style="margin-top:20px; border-top:1px solid var(--line); padding-top:15px;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                    <h4 style="font-family:var(--mono); font-size:0.8rem; color:var(--ink-2);">💬 Chat en tiempo real</h4>
+                                    <span id="chatStatus" style="font-size:0.65rem;color:var(--ink-3);">● Desconectado</span>
+                                </div>
+                                <div id="chatMessages" style="height:120px; overflow-y:auto; background:rgba(0,0,0,0.2); border-radius:6px; padding:8px; margin-bottom:8px; font-size:0.75rem; color:var(--ink-2);"></div>
+                                <div style="display:flex; gap:5px;">
+                                    <input type="text" id="chatInput" placeholder="Escribe un mensaje..." style="flex:1; padding:8px; border-radius:6px; border:1px solid var(--line); background:rgba(0,0,0,0.3); color:white; font-size:0.8rem;">
+                                    <button class="btn-primary" onclick="enviarMensajeChat()" style="padding:8px 12px;">➤</button>
+                                </div>
+                                <div style="display:flex;gap:5px;margin-top:6px;">
+                                    <button class="btn-outline" onclick="unirseChat()" style="flex:1; font-size:0.7rem;">🔗 Unirse</button>
+                                    <button class="btn-outline" onclick="salirChat()" style="flex:1; font-size:0.7rem;">🚪 Salir</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card" style="display:flex; flex-direction:column; padding:16px; height:600px;">
+                        <div class="stat-header" style="margin-bottom:10px;">
+                            <span class="stat-title">🖥️ Consola Remota</span>
+                            <span id="sshTerminalStatus" style="font-family:var(--mono); font-size:0.65rem; color:var(--ink-3);">● Desconectado</span>
+                        </div>
+                        <div id="terminalContainer" style="flex:1; background:#0a0f1a; border-radius:8px; padding:12px; overflow-y:auto; border:1px solid rgba(34,211,238,0.1); font-family:'JetBrains Mono',Consolas,Monaco,monospace; font-size:13px; color:#e7eef7; line-height:1.5; white-space:pre-wrap; word-break:break-word;">
+                            <div style="color:#22d3ee;">╔══════════════════════════════════════════════╗</div>
+                            <div style="color:#22d3ee;">║ <span style="color:#fff;font-weight:bold;">GUARDIAN SSH CONSOLE</span>                       ║</div>
+                            <div style="color:#22d3ee;">╚══════════════════════════════════════════════╝</div>
+                            <div style="color:#fbbf24;margin-top:8px;">→ Ingresa los datos y presiona CONECTAR</div>
+                            <div id="consolaOutput" style="margin-top:6px;"></div>
+                        </div>
+                        <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
+                            <span id="promptLabel" style="font-family:'JetBrains Mono',Consolas,monospace; font-size:0.85rem; color:#22d3ee; user-select:none; font-weight:600;">$</span>
+                            <input type="text" id="comandoInput" placeholder="Esperando conexión..." disabled
+                                   style="flex:1; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:rgba(0,0,0,0.5); color:white; font-family:'JetBrains Mono',Consolas,monospace; font-size:0.85rem; outline:none;"
+                                   autocomplete="off" spellcheck="false">
+                            <button id="btnEnviarComando" class="btn-primary" style="padding:10px 18px;" disabled>➤</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderGPS() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title"><h1>📍 GPS</h1><p>Ubicación en tiempo real</p></div>
+                    <div class="top-actions"><button class="btn-icon" onclick="loadView('inicio')">🏠</button></div>
+                </div>
+                <div class="map-section">
+                    <div class="map-header"><h3>🗺️ Mapa en vivo</h3><button class="btn-outline" onclick="actualizarGPS()">🔄 Actualizar</button></div>
+                    <div class="map-container"><div id="mapGPS" style="height:380px;"></div></div>
+                    <div class="direccion-card" id="direccionGPS">Cargando...</div>
+                </div>
+            `;
+        }
+
+        function renderSyslogs() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title"><h1>📋 Registros del sistema</h1><p>Historial completo de eventos del sistema</p></div>
+                    <div class="top-actions">
+                        <button class="btn-icon" onclick="cargarSyslogs()" title="Actualizar">🔄</button>
+                        <button class="btn-icon" onclick="loadView('inicio')">🏠</button>
+                    </div>
+                </div>
+                <div class="logs-section">
+                    <div class="logs-header">
+                        <h3>📄 Logs del sistema</h3>
+                        <span id="syslogsCount" style="font-family:var(--mono); font-size:0.62rem; color:var(--ink-3);"></span>
+                    </div>
+                    <div class="logs-list" id="syslogsList" style="max-height:600px;"></div>
+                </div>
+            `;
+        }
+
+        function renderCifrado() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title">
+                        <h1>🔐 Cifrado de Archivos</h1>
+                        <p>Protege archivos individuales o carpetas completas con AES-256</p>
+                    </div>
+                    <div class="top-actions">
+                        <button class="btn-icon" onclick="loadView('inicio')">🏠</button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:8px;">
+                    <h3 style="font-family:var(--mono); font-size:0.85rem; color:var(--ink-2); letter-spacing:0.5px;">📄 ARCHIVO INDIVIDUAL</h3>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                    <div class="stat-card" style="padding:24px; display:flex; flex-direction:column; gap:15px;">
+                        <div class="stat-header" style="margin-bottom:0;">
+                            <span class="stat-title" style="font-size:0.75rem; color:#F5A623;">🔒 ENCRIPTAR ARCHIVO</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:15px;">
+                            <p style="font-size:0.8rem; color:rgba(255,255,255,0.5);">Sube un archivo (PDF, JPG, MP4, DOCX, etc.) para encriptar.</p>
+                            <input type="file" id="archivoCifrar" style="width:100%; padding:12px; border:1px dashed rgba(255,255,255,0.2); border-radius:12px; background:rgba(0,0,0,0.2); color:white; font-family:inherit;">
+                            <button id="btnCifrarArchivo" class="btn-primary" style="width:100%; padding:16px; font-size:1rem; background:linear-gradient(135deg, #F5A623, #FFA500); border:none; cursor:pointer;">
+                                🔒 Encriptar Archivo
+                            </button>
+                            <div id="statusCifrado" style="font-size:0.8rem; font-weight:500; text-align:center; min-height:20px; color:#F5A623;"></div>
+                        </div>
+                    </div>
+                    <div class="stat-card" style="padding:24px; display:flex; flex-direction:column; gap:15px;">
+                        <div class="stat-header" style="margin-bottom:0;">
+                            <span class="stat-title" style="font-size:0.75rem; color:#4CAF50;">🔓 DESENCRIPTAR ARCHIVO</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:15px;">
+                            <p style="font-size:0.8rem; color:rgba(255,255,255,0.5);">Sube un archivo cifrado (.bin) para recuperarlo.</p>
+                            <input type="file" id="archivoDescifrar" accept=".bin" style="width:100%; padding:12px; border:1px dashed rgba(255,255,255,0.2); border-radius:12px; background:rgba(0,0,0,0.2); color:white; font-family:inherit;">
+                            <button id="btnDescifrarArchivo" class="btn-primary" style="width:100%; padding:16px; font-size:1rem; background:linear-gradient(135deg, #4CAF50, #2E7D32); border:none; cursor:pointer;">
+                                🔓 Desencriptar Archivo
+                            </button>
+                            <div id="statusDescifrado" style="font-size:0.8rem; font-weight:500; text-align:center; min-height:20px; color:#4CAF50;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top:24px; margin-bottom:8px;">
+                    <h3 style="font-family:var(--mono); font-size:0.85rem; color:var(--ink-2); letter-spacing:0.5px;">📁 CARPETA COMPLETA (Múltiples archivos)</h3>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                    <div class="stat-card" style="padding:24px; display:flex; flex-direction:column; gap:15px;">
+                        <div class="stat-header" style="margin-bottom:0;">
+                            <span class="stat-title" style="font-size:0.75rem; color:#F5A623;">🔒 ENCRIPTAR CARPETA</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:15px;">
+                            <p style="font-size:0.8rem; color:rgba(255,255,255,0.5);">Selecciona una carpeta completa. Se encriptarán TODOS los archivos conservando la estructura.</p>
+                            <input type="file" id="carpetaCifrar" webkitdirectory directory multiple style="width:100%; padding:12px; border:1px dashed rgba(255,255,255,0.2); border-radius:12px; background:rgba(0,0,0,0.2); color:white; font-family:inherit;">
+                            <button id="btnCifrarCarpeta" class="btn-primary" style="width:100%; padding:16px; font-size:1rem; background:linear-gradient(135deg, #F5A623, #FFA500); border:none; cursor:pointer;">
+                                🔒 Encriptar Carpeta
+                            </button>
+                            <div id="progresoCifradoCarpeta" style="display:none; margin-top:4px;">
+                                <div style="height:6px; background:rgba(0,0,0,0.3); border-radius:3px; overflow:hidden;">
+                                    <div id="barraProgresoCifrado" style="height:100%; width:0%; background:linear-gradient(90deg, #F5A623, #FFA500); transition:width 0.3s;"></div>
+                                </div>
+                            </div>
+                            <div id="statusCifradoCarpeta" style="font-size:0.8rem; font-weight:500; text-align:center; min-height:20px; color:#F5A623;"></div>
+                        </div>
+                    </div>
+                    <div class="stat-card" style="padding:24px; display:flex; flex-direction:column; gap:15px;">
+                        <div class="stat-header" style="margin-bottom:0;">
+                            <span class="stat-title" style="font-size:0.75rem; color:#4CAF50;">🔓 DESENCRIPTAR CARPETA</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:15px;">
+                            <p style="font-size:0.8rem; color:rgba(255,255,255,0.5);">Selecciona una carpeta con archivos cifrados (.bin). Se recuperarán todos.</p>
+                            <input type="file" id="carpetaDescifrar" webkitdirectory directory multiple style="width:100%; padding:12px; border:1px dashed rgba(255,255,255,0.2); border-radius:12px; background:rgba(0,0,0,0.2); color:white; font-family:inherit;">
+                            <button id="btnDescifrarCarpeta" class="btn-primary" style="width:100%; padding:16px; font-size:1rem; background:linear-gradient(135deg, #4CAF50, #2E7D32); border:none; cursor:pointer;">
+                                🔓 Desencriptar Carpeta
+                            </button>
+                            <div id="progresoDescifradoCarpeta" style="display:none; margin-top:4px;">
+                                <div style="height:6px; background:rgba(0,0,0,0.3); border-radius:3px; overflow:hidden;">
+                                    <div id="barraProgresoDescifrado" style="height:100%; width:0%; background:linear-gradient(90deg, #4CAF50, #2E7D32); transition:width 0.3s;"></div>
+                                </div>
+                            </div>
+                            <div id="statusDescifradoCarpeta" style="font-size:0.8rem; font-weight:500; text-align:center; min-height:20px; color:#4CAF50;"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCuenta() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title"><h1>👤 Mi Cuenta</h1><p>Información y seguridad</p></div>
+                    <div class="top-actions"><button class="btn-icon" onclick="loadView('inicio')">🏠</button></div>
+                </div>
+                <div style="max-width:600px;">
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">📋 Datos personales</span></div>
+                        <div style="margin-top:14px;">
+                            <div style="margin-bottom:14px;">
+                                <label style="font-size:0.65rem;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;">Correo electrónico</label>
+                                <input type="email" value="${userEmail}" disabled style="width:100%;padding:12px;border-radius:14px;border:1px solid rgba(0,180,255,0.06);background:rgba(0,0,0,0.15);color:white;font-family:inherit;">
+                            </div>
+                            <div style="margin-bottom:18px;">
+                                <label style="font-size:0.65rem;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;">Nombre</label>
+                                <input type="text" value="${userName}" disabled style="width:100%;padding:12px;border-radius:14px;border:1px solid rgba(0,180,255,0.06);background:rgba(0,0,0,0.15);color:white;font-family:inherit;">
+                            </div>
+                            <div style="margin-bottom:18px;">
+                                <label style="font-size:0.65rem;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;">Rol</label>
+                                <input type="text" value="${userRol.toUpperCase()}" disabled style="width:100%;padding:12px;border-radius:14px;border:1px solid rgba(0,180,255,0.06);background:rgba(0,0,0,0.15);color:${userRol === 'admin' ? '#F5A623' : '#4A90E2'};font-family:inherit;font-weight:600;">
+                            </div>
+                            <button class="btn-primary" id="btnCambiarPassVista" style="width:100%;padding:14px;">🔒 Cambiar contraseña</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderRegistros() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title"><h1>📝 Registros</h1><p>Historial completo</p></div>
+                    <div class="top-actions">
+                        <button class="btn-icon" onclick="cargarRegistros()" title="Actualizar">🔄</button>
+                        <button class="btn-icon" onclick="loadView('inicio')">🏠</button>
+                    </div>
+                </div>
+                <div class="logs-section">
+                    <div class="logs-header"><h3>📜 Historial de eventos</h3></div>
+                    <div class="logs-list" id="fullLogsList" style="max-height:600px;"></div>
+                </div>
+            `;
+        }
+
+        function renderEquipos() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title"><h1>🖥️ Equipos</h1><p>Dispositivos protegidos</p></div>
+                    <div class="top-actions"><button class="btn-icon" onclick="loadView('inicio')">🏠</button></div>
+                </div>
+                <div class="logs-section">
+                    <div class="logs-header"><h3>📋 Lista de equipos</h3></div>
+                    <div class="logs-list" id="equiposLista"></div>
+                </div>
+            `;
+        }
+
+        function renderIpPuertos() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title"><h1>🌐 IP y Puertos</h1><p>Información de red en tiempo real</p></div>
+                    <div class="top-actions"><button class="btn-icon" onclick="loadView('inicio')">🏠</button></div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px;">
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">📡 IP Pública</span></div>
+                        <div id="ipInfo" style="font-size:1.4rem;color:#00B4FF;font-weight:600;margin-top:6px;">Cargando...</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">🔌 Puertos abiertos</span></div>
+                        <div id="puertosInfo" style="margin-top:6px;color:rgba(255,255,255,0.6);">Cargando...</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header"><span class="stat-title">🔍 Detalle</span></div>
+                    <div id="escaneoDetalle" style="color:rgba(255,255,255,0.4);margin-top:6px;">Haz clic en actualizar</div>
+                    <button class="btn-primary" onclick="cargarIpPuertos()" style="margin-top:14px;padding:12px 28px;">🔄 Actualizar</button>
+                </div>
+            `;
+        }
+
+        function renderHerramientasRemotas() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title"><h1>🛠️ Herramientas Remotas</h1><p>Administración vía SSH</p></div>
+                    <div class="top-actions"><button class="btn-icon" onclick="loadView('inicio')">🏠</button></div>
+                </div>
+                <div id="sshWarning" style="display:none;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);border-radius:8px;padding:12px;margin-bottom:12px;font-family:var(--mono);font-size:0.8rem;color:var(--warn);">
+                    ⚠️ No hay sesión SSH activa. Ve a <a href="#" onclick="loadView('acceso_remoto');return false;" style="color:var(--signal);">Acceso Remoto</a> y conéctate primero.
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+                    <div class="stat-card" onclick="ejecutarHerramienta('estado')" style="cursor:pointer;text-align:center;padding:20px;">
+                        <div style="font-size:2.2rem;">📊</div>
+                        <div style="font-weight:600;margin-top:8px;">Estado</div>
+                        <div style="font-size:0.6rem;color:rgba(255,255,255,0.2);">Sistema</div>
+                    </div>
+                    <div class="stat-card" onclick="ejecutarHerramienta('explorar')" style="cursor:pointer;text-align:center;padding:20px;">
+                        <div style="font-size:2.2rem;">📂</div>
+                        <div style="font-weight:600;margin-top:8px;">Explorar</div>
+                        <div style="font-size:0.6rem;color:rgba(255,255,255,0.2);">Archivos</div>
+                    </div>
+                    <div class="stat-card" onclick="ejecutarHerramienta('logs')" style="cursor:pointer;text-align:center;padding:20px;">
+                        <div style="font-size:2.2rem;">📋</div>
+                        <div style="font-weight:600;margin-top:8px;">Logs</div>
+                        <div style="font-size:0.6rem;color:rgba(255,255,255,0.2);">Sistema</div>
+                    </div>
+                    <div class="stat-card" onclick="ejecutarHerramienta('red')" style="cursor:pointer;text-align:center;padding:20px;">
+                        <div style="font-size:2.2rem;">🌐</div>
+                        <div style="font-weight:600;margin-top:8px;">Red</div>
+                        <div style="font-size:0.6rem;color:rgba(255,255,255,0.2);">Información</div>
+                    </div>
+                </div>
+                <div class="logs-section" id="resultadoHerramienta">
+                    <div class="logs-header"><h3>📄 Resultado</h3></div>
+                    <div id="contenidoHerramienta" style="color:rgba(255,255,255,0.4);padding:8px 0;font-size:0.9rem;">Selecciona una herramienta para ejecutar...</div>
+                </div>
+            `;
+        }
+
+        function renderAccesos() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title"><h1>📡 Accesos Geolocalizados</h1><p>Registro de ubicaciones al ingresar</p></div>
+                    <div class="top-actions"><button class="btn-icon" onclick="loadView('inicio')">🏠</button></div>
+                </div>
+                <div class="map-section">
+                    <div class="map-header"><h3>🗺️ Mapa de accesos</h3></div>
+                    <div class="map-container"><div id="mapAccesos" style="height:240px;"></div></div>
+                </div>
+                <div class="logs-section">
+                    <div class="logs-header"><h3>📜 Historial de accesos</h3></div>
+                    <div id="tablaAccesos" class="logs-list"></div>
+                </div>
+            `;
+        }
+
+        function renderEstadisticas() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title"><h1>📊 Estadísticas 3D</h1><p>Análisis visual del sistema en tiempo real</p></div>
+                    <div class="top-actions">
+                        <button class="btn-icon" onclick="cargarEstadisticas()" title="Actualizar">🔄</button>
+                        <button class="btn-icon" onclick="loadView('inicio')">🏠</button>
+                    </div>
+                </div>
+                <div class="stats-grid" id="statsEstadisticas"></div>
+
+                <div class="logs-section" style="padding:12px;">
+                    <div class="logs-header" style="padding:0 12px 12px;">
+                        <h3>🎯 Actividad por Hora y Día (3D)</h3>
+                        <span style="font-family:var(--mono); font-size:0.62rem; color:var(--ink-3);">🖱️ Arrastra para rotar</span>
+                    </div>
+                    <div id="chart3DActividad" style="width:100%; height:420px;"></div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px;">
+                    <div class="logs-section" style="padding:12px;">
+                        <div class="logs-header" style="padding:0 12px 12px;">
+                            <h3>👥 Distribución de Roles</h3>
+                        </div>
+                        <div id="chartRoles" style="width:100%; height:300px;"></div>
+                    </div>
+                    <div class="logs-section" style="padding:12px;">
+                        <div class="logs-header" style="padding:0 12px 12px;">
+                            <h3>📈 Actividad Últimos 7 Días</h3>
+                        </div>
+                        <div id="chartTendencia" style="width:100%; height:300px;"></div>
+                    </div>
+                </div>
+
+                <div class="logs-section" style="padding:12px;">
+                    <div class="logs-header" style="padding:0 12px 12px;">
+                        <h3>🔝 Top Acciones del Sistema</h3>
+                    </div>
+                    <div id="chartAcciones" style="width:100%; height:300px;"></div>
+                </div>
+            `;
+        }
+
+        function renderAdminPanel() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title">
+                        <h1>🔐 Administración</h1>
+                        <p>Gestión avanzada del sistema</p>
+                    </div>
+                    <div class="top-actions">
+                        <button class="btn-icon" onclick="loadView('inicio')">🏠</button>
+                    </div>
+                </div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+                    <button class="btn-primary" onclick="cambiarTabAdmin('usuarios')" id="tabUsuarios">👥 Usuarios</button>
+                    <button class="btn-outline" onclick="cambiarTabAdmin('logs')" id="tabLogs">📋 Logs</button>
+                    <button class="btn-outline" onclick="cambiarTabAdmin('config')" id="tabConfig">⚙️ Configuración</button>
+                </div>
+                <div id="adminContent">
+                    <div id="adminTabUsuarios">
+                        <div class="logs-section">
+                            <div class="logs-header">
+                                <h3>👥 Lista de usuarios</h3>
+                                <span id="adminUserCount"></span>
+                            </div>
+                            <div style="overflow-x:auto;">
+                                <table class="admin-table" id="adminUserTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Email</th>
+                                            <th>Nombre</th>
+                                            <th>Rol</th>
+                                            <th>Estado</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="adminUserBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="adminTabLogs" style="display:none;">
+                        <div class="logs-section">
+                            <div class="logs-header">
+                                <h3>📋 Logs del sistema</h3>
+                                <span id="adminLogCount"></span>
+                            </div>
+                            <div class="logs-list" id="adminLogsList"></div>
+                        </div>
+                    </div>
+                    <div id="adminTabConfig" style="display:none;">
+                        <div class="stat-card" style="max-width:600px;">
+                            <div class="stat-header"><span class="stat-title">⚙️ Configuración del sistema</span></div>
+                            <div class="admin-config-form">
+                                <label style="font-size:0.65rem;color:rgba(255,255,255,0.3);">Puerto del servidor</label>
+                                <input type="number" id="configPuerto" placeholder="5000" />
+                                <label style="font-size:0.65rem;color:rgba(255,255,255,0.3);">Algoritmo de cifrado</label>
+                                <select id="configAlgoritmo">
+                                    <option value="AES-256">AES-256</option>
+                                    <option value="ChaCha20">ChaCha20</option>
+                                    <option value="Blowfish">Blowfish</option>
+                                </select>
+                                <label style="font-size:0.65rem;color:rgba(255,255,255,0.3);">Token de ngrok</label>
+                                <input type="text" id="configNgrok" placeholder="Tu token de ngrok" />
+                                <button class="btn-primary" id="btnGuardarConfig" style="width:100%;padding:14px;">💾 Guardar configuración</button>
+                                <div id="configError" class="error"></div>
+                                <div id="configSuccess" class="success-message"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDashboardAdmin() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title">
+                        <h1>📈 Dashboard Ejecutivo</h1>
+                        <p>Métricas y actividad del sistema en tiempo real</p>
+                    </div>
+                    <div class="top-actions">
+                        <button class="btn-icon" onclick="cargarDashboardAdmin()" title="Actualizar">🔄</button>
+                        <button class="btn-icon" onclick="loadView('admin_panel')" title="Volver">🔒</button>
+                    </div>
+                </div>
+                <div class="stats-grid" id="dashboardStats"></div>
+                <div class="stats-grid" id="dashboardStats2"></div>
+                <div class="logs-section">
+                    <div class="logs-header"><h3>📊 Actividad por hora (últimas 24h)</h3></div>
+                    <div id="actividadGrafico" style="height:200px;display:flex;align-items:flex-end;gap:4px;padding:10px;"></div>
+                </div>
+            `;
+        }
+
+        function renderSesiones() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title">
+                        <h1>🖥️ Sesiones Activas</h1>
+                        <p>Usuarios conectados actualmente</p>
+                    </div>
+                    <div class="top-actions">
+                        <button class="btn-icon" onclick="cargarSesiones()" title="Actualizar">🔄</button>
+                        <button class="btn-icon" onclick="loadView('admin_panel')" title="Volver">🔒</button>
+                    </div>
+                </div>
+                <div class="logs-section">
+                    <div class="logs-header"><h3>🖥️ Sesiones en tiempo real</h3></div>
+                    <div id="sesionesLista" class="logs-list"></div>
+                </div>
+            `;
+        }
+
+        function renderAuditoria() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title">
+                        <h1>📋 Auditoría Avanzada</h1>
+                        <p>Filtra y exporta logs del sistema</p>
+                    </div>
+                    <div class="top-actions">
+                        <button class="btn-icon" onclick="exportarAuditoriaCSV()" title="Exportar CSV">📤</button>
+                        <button class="btn-icon" onclick="loadView('admin_panel')" title="Volver">🔒</button>
+                    </div>
+                </div>
+                <div class="logs-section">
+                    <div class="filtros-container">
+                        <select id="filtroUsuario">
+                            <option value="">Todos los usuarios</option>
+                        </select>
+                        <select id="filtroAccion">
+                            <option value="">Todas las acciones</option>
+                        </select>
+                        <input type="date" id="filtroFechaDesde" />
+                        <input type="date" id="filtroFechaHasta" />
+                        <button onclick="aplicarFiltrosAuditoria()">🔍 Filtrar</button>
+                        <button onclick="cargarAuditoria()" class="btn-secondary">🔄 Limpiar</button>
+                    </div>
+                    <div class="logs-header">
+                        <h3>📜 Logs del sistema</h3>
+                        <span id="auditoriaTotal"></span>
+                    </div>
+                    <div class="logs-list" id="auditoriaLista" style="max-height:400px;"></div>
+                </div>
+            `;
+        }
+
+        function renderBackup() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title">
+                        <h1>💾 Backup y Restauración</h1>
+                        <p>Exporta e importa datos de la base de datos</p>
+                    </div>
+                    <div class="top-actions">
+                        <button class="btn-icon" onclick="loadView('admin_panel')" title="Volver">🔒</button>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px;">
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">📤 Exportar Backup</span></div>
+                        <div style="margin-top:12px;">
+                            <label style="font-size:0.7rem;color:rgba(255,255,255,0.3);">Selecciona colección</label>
+                            <select id="backupColeccion" style="width:100%;padding:12px;border-radius:14px;border:1px solid rgba(0,180,255,0.06);background:rgba(0,0,0,0.2);color:white;margin-bottom:12px;">
+                                <option value="usuarios">Usuarios</option>
+                                <option value="logs">Logs</option>
+                                <option value="dispositivos">Dispositivos</option>
+                                <option value="configuracion">Configuración</option>
+                                <option value="rastroe">Rastreo</option>
+                                <option value="archivos_protegidos">Archivos protegidos</option>
+                                <option value="archivos_cifrados">Archivos cifrados</option>
+                            </select>
+                            <button class="btn-primary" onclick="realizarBackup()" style="width:100%;padding:14px;">📥 Descargar Backup</button>
+                            <div id="backupError" class="error"></div>
+                            <div id="backupSuccess" class="success-message"></div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">📥 Restaurar Backup</span></div>
+                        <div style="margin-top:12px;">
+                            <button class="btn-primary" onclick="document.getElementById('modalRestaurar').style.display='flex'" style="width:100%;padding:14px;">📤 Subir archivo y restaurar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPoliticas() {
+            return `
+                <div class="top-bar">
+                    <div class="page-title">
+                        <h1>🛡️ Políticas de Seguridad</h1>
+                        <p>Configura los requisitos de seguridad del sistema</p>
+                    </div>
+                    <div class="top-actions">
+                        <button class="btn-icon" onclick="loadView('admin_panel')" title="Volver">🔒</button>
+                    </div>
+                </div>
+                <div class="stat-card" style="max-width:600px;">
+                    <div id="politicasContenido">
+                        <div style="text-align:center;padding:20px;color:rgba(255,255,255,0.3);">Cargando políticas...</div>
+                    </div>
+                    <div style="margin-top:12px;">
+                        <button class="btn-primary" id="btnGuardarPoliticas" style="width:100%;padding:14px;">💾 Guardar Políticas</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // LOADVIEW
+        // ==========================================
+        async function loadView(view) {
+            currentView = view;
+            const container = document.getElementById('vistaContainer');
+
+            document.querySelectorAll('.nav-item, .sub-item').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item[data-view="' + view + '"]').forEach(el => el.classList.add('active'));
+            document.querySelectorAll('.sub-item[data-view="' + view + '"]').forEach(el => el.classList.add('active'));
+
+            const adminViews = ['admin_panel', 'dashboard_admin', 'sesiones', 'auditoria', 'backup', 'politicas'];
+            if (adminViews.includes(view) && !checkAdmin()) return;
+
+            if (view === 'inicio') {
+                container.innerHTML = renderInicio();
+                await cargarEstadoInicio();
+                await cargarLogsInicio();
+                iniciarRastreoAutomatico();
+            } else if (view === 'acceso_remoto') {
+                container.innerHTML = renderAccesoRemoto();
+                document.getElementById('btnConectarSSH').onclick = conectarSSH;
+                document.getElementById('btnDesconectarSSH').onclick = desconectarSSH;
+            } else if (view === 'gps') {
+                container.innerHTML = renderGPS();
+                iniciarMapaGPS();
+            } else if (view === 'syslogs') {
+                container.innerHTML = renderSyslogs();
+                await cargarSyslogs();
+            } else if (view === 'cifrado') {
+                container.innerHTML = renderCifrado();
+                document.getElementById('btnCifrarArchivo').addEventListener('click', cifrarArchivoLocal);
+                document.getElementById('btnDescifrarArchivo').addEventListener('click', descifrarArchivoLocal);
+                document.getElementById('btnCifrarCarpeta').addEventListener('click', cifrarCarpetaLocal);
+                document.getElementById('btnDescifrarCarpeta').addEventListener('click', descifrarCarpetaLocal);
+            } else if (view === 'cuenta') {
+                container.innerHTML = renderCuenta();
+                document.getElementById('btnCambiarPassVista').onclick = () => document.getElementById('modalCambiarPassword').style.display = 'flex';
+                document.getElementById('btnCambiarPass').onclick = cambiarPassword;
+            } else if (view === 'registros') {
+                container.innerHTML = renderRegistros();
+                await cargarRegistros();
+            } else if (view === 'equipos_lista') {
+                container.innerHTML = renderEquipos();
+                await cargarEquipos();
+            } else if (view === 'ip_puertos') {
+                container.innerHTML = renderIpPuertos();
+                await cargarIpPuertos();
+            } else if (view === 'herramientas_remotas') {
+                container.innerHTML = renderHerramientasRemotas();
+                if (!currentSessionId) {
+                    const warn = document.getElementById('sshWarning');
+                    if (warn) warn.style.display = 'block';
+                }
+            } else if (view === 'accesos') {
+                container.innerHTML = renderAccesos();
+                await cargarAccesos();
+            } else if (view === 'estadisticas') {
+                container.innerHTML = renderEstadisticas();
+                await cargarEstadisticas();
+            } else if (view === 'admin_panel') {
+                container.innerHTML = renderAdminPanel();
+                await cargarAdminUsuarios();
+                await cargarAdminLogs();
+                await cargarAdminConfig();
+                document.getElementById('btnAdminCambiarPass').onclick = adminCambiarPassword;
+                document.getElementById('btnAdminEdit').onclick = adminGuardarEdicion;
+                document.getElementById('btnConfirmDelete').onclick = adminConfirmarEliminar;
+                document.getElementById('btnGuardarConfig').onclick = adminGuardarConfig;
+            } else if (view === 'dashboard_admin') {
+                container.innerHTML = renderDashboardAdmin();
+                await cargarDashboardAdmin();
+            } else if (view === 'sesiones') {
+                container.innerHTML = renderSesiones();
+                await cargarSesiones();
+            } else if (view === 'auditoria') {
+                container.innerHTML = renderAuditoria();
+                await cargarAuditoria();
+            } else if (view === 'backup') {
+                container.innerHTML = renderBackup();
+                configurarBackup();
+            } else if (view === 'politicas') {
+                container.innerHTML = renderPoliticas();
+                await cargarPoliticas();
+                document.getElementById('btnGuardarPoliticas').onclick = guardarPoliticas;
+            }
+        }
+
+        // ==========================================
+        // INICIO
+        // ==========================================
+        async function cargarEstadoInicio() {
+            try {
+                const res = await apiFetch(`${API_URL}/files/estado`); // ✅ RUTA NUEVA
+                const data = await res.json();
+                document.getElementById('statsGridInicio').innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">🛡️ Estado</span><span class="stat-icon">🟢</span></div>
+                        <div class="stat-value"><span class="status-active">● ${data.estado.toUpperCase()}</span></div>
+                        <div class="stat-detail">🌐 IP: <span>${data.ip}</span></div>
+                        <div class="stat-detail">🖥️ Equipo: <span>${data.dispositivo}</span></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">📍 Ubicación</span><span class="stat-icon">🌍</span></div>
+                        <div class="stat-value">${data.ubicacion.ciudad}</div>
+                        <div class="stat-detail">Lat: <span>${data.ubicacion.lat}</span> | Lon: <span>${data.ubicacion.lon}</span></div>
+                        <div class="stat-detail">Precisión: <span>${data.ubicacion.precision} m</span></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header"><span class="stat-title">🛡️ Manto Protector</span><span class="stat-icon">🛡️</span></div>
+                        <div class="stat-value">${data.cifrado_porcentaje}%</div>
+                        <div class="stat-detail">Archivos: <span>${data.archivos_protegidos} / ${data.archivos_totales}</span></div>
+                        <div style="margin-top:8px; background:rgba(76,175,80,0.06); border-radius:10px; padding:4px 10px; font-size:0.65rem; color:#4CAF50; display:inline-block;">✅ Protección activa</div>
+                    </div>
+                `;
+                await actualizarMapaInicio(data.ubicacion.lat, data.ubicacion.lon);
+            } catch (e) {
+                document.getElementById('statsGridInicio').innerHTML = `<div class="stat-card" style="border-color:#FF4466;">⚠️ Error cargando estado</div>`;
+            }
+        }
+
+        async function actualizarMapaInicio(lat, lon) {
+            if (!document.getElementById('mapInicio')) return;
+            if (!mapaInicio) {
+                mapaInicio = L.map('mapInicio').setView([lat, lon], 15);
+                L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors',
+                    maxZoom: 19
+                }).addTo(mapaInicio);
+            } else {
+                mapaInicio.setView([lat, lon], 15);
+            }
+            if (marcadorInicio) mapaInicio.removeLayer(marcadorInicio);
+            marcadorInicio = L.marker([lat, lon], { icon: L.divIcon({ html: '<div style="font-size:32px;">🛡️</div>', iconSize: [32,32] }) }).addTo(mapaInicio).bindPopup('Dispositivo actual');
+            const dir = await obtenerDireccion(lat, lon);
+            const dirEl = document.getElementById('direccionInicio');
+            if (dirEl) dirEl.innerHTML = `📍 ${dir}`;
+        }
+
+        async function actualizarUbicacionManual() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(async pos => {
+                    const lat = pos.coords.latitude, lon = pos.coords.longitude;
+                    await actualizarMapaInicio(lat, lon);
+                    const dir = await obtenerDireccion(lat, lon);
+                    await apiFetch(`${API_URL}/files/ubicacion`, { // ✅ RUTA NUEVA
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ lat, lon, precision: pos.coords.accuracy, ciudad: dir })
+                    });
+                }, () => {});
+            }
+        }
+
+        async function cargarLogsInicio() {
+            const container = document.getElementById('logsListInicio');
+            if (!container) return;
+            try {
+                const res = await apiFetch(`${API_URL}/files/logs`); // ✅ RUTA NUEVA
+                const logs = await res.json();
+                if (!logs.length) {
+                    container.innerHTML = '<div class="log-item">📭 No hay logs registrados aún.</div>';
+                    return;
+                }
+                container.innerHTML = logs.map(l => `
+                    <div class="log-item">
+                        <span class="log-time">${new Date(l.fecha).toLocaleTimeString()}</span>
+                        <span class="log-icon">🛡️</span>
+                        <span class="log-text">${l.detalle}</span>
+                    </div>
+                `).join('');
+            } catch (e) {
+                container.innerHTML = `<div class="log-item" style="color:#FF4466;">❌ Error cargando logs</div>`;
+            }
+        }
+
+        function iniciarRastreoAutomatico() {
+            if (intervalRastreo) clearInterval(intervalRastreo);
+            intervalRastreo = setInterval(() => {
+                if (currentView === 'inicio') actualizarUbicacionManual();
+            }, 30000);
+        }
+
+        // ==========================================
+        // SSH
+        // ==========================================
+        async function conectarSSH() {
+            const host = document.getElementById('remoteHost').value.trim();
+            const port = parseInt(document.getElementById('remotePort').value) || 22;
+            const user = document.getElementById('remoteUser').value.trim();
+            const pass = document.getElementById('remotePass').value;
+            const statusEl = document.getElementById('sshStatus');
+            const outputEl = document.getElementById('consolaOutput');
+
+            if (!host || !user || !pass) {
+                statusEl.style.display = 'block';
+                statusEl.style.color = 'var(--bad)';
+                statusEl.innerHTML = '⚠️ Completa todos los campos';
+                return;
+            }
+
+            statusEl.style.display = 'block';
+            statusEl.style.color = 'var(--warn)';
+            statusEl.innerHTML = '⏳ Conectando...';
+            outputEl.innerHTML += `<div style="color:#fbbf24;">⏳ Conectando a ${host}:${port}...</div>`;
+
+            try {
+                const res = await apiFetch(`${API_URL}/ssh/conectar`, { // ✅ RUTA NUEVA
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: host, puerto: port, usuario: user, password: pass })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    currentSessionId = data.session_id;
+                    statusEl.style.color = 'var(--ok)';
+                    statusEl.innerHTML = `✅ Conectado a ${host}`;
+
+                    document.getElementById('btnConectarSSH').style.display = 'none';
+                    document.getElementById('btnDesconectarSSH').style.display = 'block';
+
+                    const statusTerm = document.getElementById('sshTerminalStatus');
+                    if (statusTerm) {
+                        statusTerm.innerHTML = `● Conectado a ${host}`;
+                        statusTerm.style.color = 'var(--ok)';
+                    }
+
+                    outputEl.innerHTML += `<div style="color:#34d399;">✅ Conectado a ${host}:${port} como ${user}</div>`;
+                    outputEl.innerHTML += `<div style="color:#94a3b8;font-size:0.75rem;">Escribe comandos abajo y presiona Enter</div>`;
+
+                    ['remoteHost', 'remotePort', 'remoteUser', 'remotePass'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.disabled = true;
+                    });
+
+                    const cmdInput = document.getElementById('comandoInput');
+                    const cmdBtn = document.getElementById('btnEnviarComando');
+                    cmdInput.disabled = false;
+                    cmdBtn.disabled = false;
+                    cmdInput.placeholder = 'Escribe un comando y presiona Enter...';
+                    cmdInput.focus();
+
+                    cmdInput.onkeydown = (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            enviarComando();
+                        }
+                    };
+                    cmdBtn.onclick = enviarComando;
+
+                    document.getElementById('promptLabel').textContent = `${user}@${host}$`;
+                } else {
+                    statusEl.style.color = 'var(--bad)';
+                    statusEl.innerHTML = `❌ ${data.message}`;
+                    outputEl.innerHTML += `<div style="color:#f87171;">❌ ${data.message}</div>`;
+                }
+            } catch (e) {
+                statusEl.style.color = 'var(--bad)';
+                statusEl.innerHTML = `❌ Error: ${e.message}`;
+                outputEl.innerHTML += `<div style="color:#f87171;">❌ ${e.message}</div>`;
+            }
+        }
+
+        async function enviarComando() {
+            const input = document.getElementById('comandoInput');
+            const outputEl = document.getElementById('consolaOutput');
+            const cmd = input.value.trim();
+            if (!cmd) return;
+            if (!currentSessionId) {
+                outputEl.innerHTML += `<div style="color:#f87171;">⚠️ Sin sesión activa</div>`;
+                return;
+            }
+
+            const prompt = document.getElementById('promptLabel').textContent;
+            outputEl.innerHTML += `<div style="color:#22d3ee; margin-top:4px;">${escapeHtml(prompt)} <span style="color:#e7eef7;">${escapeHtml(cmd)}</span></div>`;
+
+            if (cmd === 'clear' || cmd === 'cls') {
+                outputEl.innerHTML = '';
+                input.value = '';
+                return;
+            }
+            if (cmd === 'exit' || cmd === 'logout') {
+                input.value = '';
+                await desconectarSSH();
+                return;
+            }
+
+            input.value = '';
+            input.disabled = true;
+
+            const loader = document.createElement('div');
+            loader.style.color = '#fbbf24';
+            loader.style.fontSize = '0.75rem';
+            loader.textContent = '⏳ Ejecutando...';
+            outputEl.appendChild(loader);
+            const container = document.getElementById('terminalContainer');
+            container.scrollTop = container.scrollHeight;
+
+            try {
+                const res = await apiFetch(`${API_URL}/ssh/ejecutar`, { // ✅ RUTA NUEVA
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: currentSessionId, comando: cmd })
+                });
+                const data = await res.json();
+                loader.remove();
+
+                if (data.success) {
+                    const salida = (data.output || '').replace(/\r\n/g, '\n').trim();
+                    if (salida) {
+                        outputEl.innerHTML += `<pre style="margin:4px 0; color:#e7eef7; font-family:inherit; font-size:0.83rem; white-space:pre-wrap; word-break:break-word;">${escapeHtml(salida)}</pre>`;
+                    } else {
+                        outputEl.innerHTML += `<div style="color:#94a3b8; font-size:0.75rem;">(sin salida)</div>`;
+                    }
+                } else {
+                    outputEl.innerHTML += `<div style="color:#f87171;">❌ ${escapeHtml(data.message || 'Error')}</div>`;
+                }
+            } catch (e) {
+                loader.remove();
+                outputEl.innerHTML += `<div style="color:#f87171;">❌ Error de red: ${escapeHtml(e.message)}</div>`;
+            }
+
+            input.disabled = false;
+            input.focus();
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        async function desconectarSSH() {
+            if (currentSessionId) {
+                try {
+                    await apiFetch(`${API_URL}/ssh/desconectar`, { // ✅ RUTA NUEVA
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ session_id: currentSessionId })
+                    });
+                } catch (e) {}
+            }
+            limpiarSesionSSH();
+        }
+
+        function limpiarSesionSSH() {
+            currentSessionId = null;
+
+            const btnConectar = document.getElementById('btnConectarSSH');
+            const btnDesconectar = document.getElementById('btnDesconectarSSH');
+            const statusEl = document.getElementById('sshStatus');
+            const statusTerm = document.getElementById('sshTerminalStatus');
+            const cmdInput = document.getElementById('comandoInput');
+            const cmdBtn = document.getElementById('btnEnviarComando');
+            const outputEl = document.getElementById('consolaOutput');
+            const promptLabel = document.getElementById('promptLabel');
+
+            if (btnConectar) btnConectar.style.display = 'block';
+            if (btnDesconectar) btnDesconectar.style.display = 'none';
+            if (statusEl) statusEl.style.display = 'none';
+            if (statusTerm) {
+                statusTerm.innerHTML = '● Desconectado';
+                statusTerm.style.color = 'var(--ink-3)';
+            }
+            if (cmdInput) {
+                cmdInput.disabled = true;
+                cmdInput.value = '';
+                cmdInput.placeholder = 'Esperando conexión...';
+                cmdInput.onkeydown = null;
+            }
+            if (cmdBtn) {
+                cmdBtn.disabled = true;
+                cmdBtn.onclick = null;
+            }
+            if (promptLabel) promptLabel.textContent = '$';
+            if (outputEl) outputEl.innerHTML += `<div style="color:#fbbf24; margin-top:6px;">🔌 Sesión desconectada</div>`;
+
+            ['remoteHost', 'remotePort', 'remoteUser', 'remotePass'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.disabled = false;
+            });
+        }
+
+        // ==========================================
+        // CHAT
+        // ==========================================
+        function conectarChat() {
+            if (chatSocket) chatSocket.close();
+            chatSocket = io(window.location.origin);
+
+            chatSocket.on('connect', () => {
+                const chatMsgs = document.getElementById('chatMessages');
+                const chatStatus = document.getElementById('chatStatus');
+                if (chatMsgs) chatMsgs.innerHTML += `<div style="color:#4CAF50;">🔗 Conectado al chat</div>`;
+                if (chatStatus) {
+                    chatStatus.innerHTML = '● Conectado';
+                    chatStatus.style.color = 'var(--ok)';
+                }
+                chatSocket.emit('join_chat', { room: 'general', username: userEmail });
+                chatConectado = true;
+            });
+
+            chatSocket.on('disconnect', () => {
+                const chatStatus = document.getElementById('chatStatus');
+                if (chatStatus) {
+                    chatStatus.innerHTML = '● Desconectado';
+                    chatStatus.style.color = 'var(--ink-3)';
+                }
+                chatConectado = false;
+            });
+
+            chatSocket.on('chat_message', (data) => {
+                const chatMsgs = document.getElementById('chatMessages');
+                if (!chatMsgs) return;
+                const div = document.createElement('div');
+                div.style.padding = '4px 0';
+                div.innerHTML = `<span style="color:#00B4FF;font-weight:600;">${escapeHtml(data.username)}</span> <span style="color:rgba(255,255,255,0.2);font-size:0.65rem;">${data.timestamp}</span><br><span style="color:rgba(255,255,255,0.7);">${escapeHtml(data.message)}</span>`;
+                chatMsgs.appendChild(div);
+                chatMsgs.scrollTop = chatMsgs.scrollHeight;
+            });
+        }
+
+        function unirseChat() {
+            if (chatSocket && chatSocket.connected) {
+                chatSocket.emit('join_chat', { room: 'general', username: userEmail });
+            } else {
+                conectarChat();
+            }
+        }
+
+        function enviarMensajeChat() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+            if (!chatSocket || !chatSocket.connected) {
+                alert('⚠️ Primero únete al chat');
+                return;
+            }
+            chatSocket.emit('send_chat_message', { room: 'general', username: userEmail, message: message });
+            input.value = '';
+        }
+
+        function salirChat() {
+            if (chatSocket && chatSocket.connected) {
+                chatSocket.emit('leave_chat', { room: 'general', username: userEmail });
+                chatSocket.close();
+                chatSocket = null;
+                chatConectado = false;
+                const chatMsgs = document.getElementById('chatMessages');
+                const chatStatus = document.getElementById('chatStatus');
+                if (chatMsgs) chatMsgs.innerHTML += `<div style="color:#F5A623;">👋 Has salido del chat</div>`;
+                if (chatStatus) {
+                    chatStatus.innerHTML = '● Desconectado';
+                    chatStatus.style.color = 'var(--ink-3)';
+                }
+            }
+        }
+
+        // ==========================================
+        // IP PUERTOS / EQUIPOS / REGISTROS
+        // ==========================================
+        async function cargarIpPuertos() {
+            try {
+                const res = await apiFetch(`${API_URL}/files/ip-puertos`); // ✅ RUTA NUEVA
+                const data = await res.json();
+                document.getElementById('ipInfo').innerHTML = data.ip_publica || 'No disponible';
+                document.getElementById('puertosInfo').innerHTML = data.puertos_abiertos.length ?
+                    data.puertos_abiertos.map(p => `<span style="display:inline-block;background:rgba(76,175,80,0.1);padding:4px 12px;border-radius:20px;margin:4px;">${p}</span>`).join(' ') :
+                    'No hay puertos abiertos';
+                document.getElementById('escaneoDetalle').innerHTML = `IP local: ${data.ip_local}`;
+            } catch (e) {
+                document.getElementById('ipInfo').innerHTML = 'Error';
+            }
+        }
+
+        async function cargarEquipos() {
+            try {
+                const res = await apiFetch(`${API_URL}/files/equipos`); // ✅ RUTA NUEVA
+                const equipos = await res.json();
+                const container = document.getElementById('equiposLista');
+                if (!equipos.length) {
+                    container.innerHTML = '<div class="log-item">📭 No hay equipos registrados</div>';
+                    return;
+                }
+                container.innerHTML = equipos.map(e =>
+                    `<div class="log-item"><span class="log-icon">🖥️</span><span class="log-text"><strong>${e.nombre}</strong> - IP: ${e.ip} - ${e.sistema_operativo || ''}</span></div>`
+                ).join('');
+            } catch (e) {
+                document.getElementById('equiposLista').innerHTML = '<div class="log-item">❌ Error</div>';
+            }
+        }
+
+        async function cargarRegistros() {
+            const container = document.getElementById('fullLogsList');
+            if (!container) return;
+            container.innerHTML = '<div class="log-item">⏳ Cargando registros...</div>';
+            try {
+                const res = await apiFetch(`${API_URL}/files/logs`); // ✅ RUTA NUEVA
+                const logs = await res.json();
+                if (!logs || !logs.length) {
+                    container.innerHTML = '<div class="log-item">📭 No hay registros aún.</div>';
+                    return;
+                }
+                container.innerHTML = logs.map(l => {
+                    const fecha = new Date(l.fecha);
+                    const fechaStr = isNaN(fecha) ? l.fecha : fecha.toLocaleString();
+                    return `
+                        <div class="log-item" style="align-items:flex-start;">
+                            <span class="log-time">${fechaStr}</span>
+                            <span class="log-icon">🛡️</span>
+                            <span class="log-text" style="white-space:normal;">
+                                <strong style="color:var(--signal);">${escapeHtml(l.accion || 'evento')}</strong>
+                                <span style="color:var(--ink-3);"> — </span>
+                                <span>${escapeHtml(l.detalle || '')}</span>
+                            </span>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                container.innerHTML = `<div class="log-item" style="color:#FF4466;">❌ Error cargando registros: ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        async function cargarSyslogs() {
+            const container = document.getElementById('syslogsList');
+            if (!container) return;
+            container.innerHTML = '<div class="log-item">⏳ Cargando registros...</div>';
+            try {
+                const res = await apiFetch(`${API_URL}/files/logs`); // ✅ RUTA NUEVA
+                const logs = await res.json();
+                const countEl = document.getElementById('syslogsCount');
+                if (countEl) countEl.textContent = `${(logs || []).length} eventos`;
+                if (!logs || !logs.length) {
+                    container.innerHTML = '<div class="log-item">📭 No hay registros del sistema aún.</div>';
+                    return;
+                }
+                container.innerHTML = logs.map(l => {
+                    const fecha = new Date(l.fecha);
+                    const fechaStr = isNaN(fecha) ? l.fecha : fecha.toLocaleString();
+                    return `
+                        <div class="log-item" style="align-items:flex-start;">
+                            <span class="log-time">${fechaStr}</span>
+                            <span class="log-icon">🛡️</span>
+                            <span class="log-text" style="white-space:normal;">
+                                <strong style="color:var(--signal);">${escapeHtml(l.accion || 'evento')}</strong>
+                                <span style="color:var(--ink-3);"> — </span>
+                                <span>${escapeHtml(l.detalle || '')}</span>
+                            </span>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                container.innerHTML = `<div class="log-item" style="color:#FF4466;">❌ Error cargando registros: ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        async function cargarAccesos() {
+            try {
+                const res = await apiFetch(`${API_URL}/files/accesos`); // ✅ RUTA NUEVA
+                const accesos = await res.json();
+                const container = document.getElementById('tablaAccesos');
+
+                if (!accesos || !accesos.length) {
+                    container.innerHTML = '<div class="log-item">📭 No hay accesos</div>';
+                } else {
+                    container.innerHTML = accesos.map(a =>
+                        `<div class="log-item"><span class="log-time">${new Date(a.fecha).toLocaleString()}</span><span class="log-icon">📍</span><span class="log-text">${a.lat}, ${a.lon}</span></div>`
+                    ).join('');
+                }
+
+                const mapDiv = document.getElementById('mapAccesos');
+                if (!mapDiv) return;
+
+                if (mapaAccesos) {
+                    try { mapaAccesos.remove(); } catch(e) {}
+                    mapaAccesos = null;
+                    marcadoresAccesos = [];
+                }
+
+                const puntosValidos = accesos.filter(a =>
+                    a.lat !== undefined && a.lon !== undefined &&
+                    !isNaN(parseFloat(a.lat)) && !isNaN(parseFloat(a.lon))
+                );
+
+                let centroLat = -34.6037;
+                let centroLon = -58.3816;
+                let zoomInicial = 4;
+
+                if (puntosValidos.length > 0) {
+                    centroLat = parseFloat(puntosValidos[0].lat);
+                    centroLon = parseFloat(puntosValidos[0].lon);
+                    zoomInicial = puntosValidos.length === 1 ? 15 : 6;
+                }
+
+                mapaAccesos = L.map('mapAccesos').setView([centroLat, centroLon], zoomInicial);
+                L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors',
+                    maxZoom: 19
+                }).addTo(mapaAccesos);
+
+                puntosValidos.forEach((a, idx) => {
+                    const lat = parseFloat(a.lat);
+                    const lon = parseFloat(a.lon);
+                    const fechaStr = a.fecha ? new Date(a.fecha).toLocaleString() : 'Sin fecha';
+                    const marker = L.marker([lat, lon])
+                        .addTo(mapaAccesos)
+                        .bindPopup(`
+                            <div style="font-family: Inter, sans-serif; font-size: 0.8rem; color: #000;">
+                                <strong>📍 Acceso #${idx + 1}</strong><br>
+                                <small>${fechaStr}</small><br>
+                                <small>Lat: ${lat.toFixed(5)}, Lon: ${lon.toFixed(5)}</small>
+                            </div>
+                        `);
+                    marcadoresAccesos.push(marker);
+                });
+
+                if (puntosValidos.length > 1) {
+                    try {
+                        const group = L.featureGroup(marcadoresAccesos);
+                        mapaAccesos.fitBounds(group.getBounds().pad(0.2));
+                    } catch (e) {}
+                }
+
+                setTimeout(() => {
+                    if (mapaAccesos) mapaAccesos.invalidateSize();
+                }, 200);
+            } catch (e) {
+                console.error('Error cargando accesos:', e);
+                const container = document.getElementById('tablaAccesos');
+                if (container) container.innerHTML = '<div class="log-item" style="color:#FF4466;">❌ Error cargando accesos</div>';
+            }
+        }
+
+        // ==========================================
+        // ESTADÍSTICAS 3D
+        // ==========================================
+        async function cargarEstadisticas() {
+            try {
+                const res = await apiFetch(`${API_URL}/stats/estadisticas`); // ✅ RUTA NUEVA
+                const data = await res.json();
+
+                document.getElementById('statsEstadisticas').innerHTML = `
+                    <div class="stat-card"><div class="stat-header"><span class="stat-title">👥 Usuarios</span></div><div class="stat-value">${data.total_usuarios}</div></div>
+                    <div class="stat-card"><div class="stat-header"><span class="stat-title">📝 Logs</span></div><div class="stat-value">${data.total_logs}</div></div>
+                    <div class="stat-card"><div class="stat-header"><span class="stat-title">🖥️ Equipos</span></div><div class="stat-value">${data.total_dispositivos}</div></div>
+                    <div class="stat-card"><div class="stat-header"><span class="stat-title">🔐 Archivos cifrados</span></div><div class="stat-value">${data.total_archivos_cifrados}</div></div>
+                `;
+
+                setTimeout(() => {
+                    render3DChart(data.matriz_3d);
+                    renderRolesChart(data.distribucion_roles);
+                    renderTendenciaChart(data.logs_por_dia);
+                    renderAccionesChart(data.acciones_top);
+                }, 100);
+
+            } catch (e) {
+                console.error('Error cargando estadísticas:', e);
+            }
+        }
+
+        function render3DChart(matrizData) {
+            const chartDom = document.getElementById('chart3DActividad');
+            if (!chartDom || typeof echarts === 'undefined') return;
+
+            if (window._chart3D) { try { window._chart3D.dispose(); } catch(e) {} }
+            const chart = echarts.init(chartDom, null, { renderer: 'canvas' });
+            window._chart3D = chart;
+
+            const dias = matrizData.dias || [];
+            const matriz = matrizData.matriz || [];
+            const hours = Array.from({length: 24}, (_, i) => `${String(i).padStart(2, '0')}:00`);
+
+            if (matriz.length === 0) {
+                chartDom.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,0.3);font-family:var(--mono);font-size:0.85rem;">📭 Aún no hay actividad registrada para mostrar en 3D</div>';
+                return;
+            }
+
+            const seriesData = matriz.map(item => [item.hora, item.dia, item.count]);
+            const maxVal = Math.max(10, ...seriesData.map(d => d[2]));
+
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    backgroundColor: 'rgba(11, 18, 28, 0.95)',
+                    borderColor: '#22D3EE',
+                    textStyle: { color: '#E7EEF7', fontFamily: 'Inter' },
+                    formatter: (p) => {
+                        return `<b style="color:#22D3EE;">${dias[p.value[1]]}</b><br/>
+                                Hora: <b>${hours[p.value[0]]}</b><br/>
+                                Eventos: <b style="color:#FBBF24;">${p.value[2]}</b>`;
+                    }
+                },
+                visualMap: {
+                    max: maxVal,
+                    min: 0,
+                    calculable: true,
+                    realtime: false,
+                    inRange: {
+                        color: ['#0f172a', '#1e3a5f', '#22D3EE', '#3B82F6', '#8B5CF6']
+                    },
+                    textStyle: { color: '#94A3B8', fontFamily: 'Inter' },
+                    dimension: 2,
+                    right: 10,
+                    bottom: 10,
+                    itemWidth: 12,
+                    itemHeight: 100
+                },
+                xAxis3D: {
+                    type: 'category',
+                    data: hours,
+                    name: 'Hora',
+                    nameTextStyle: { color: '#22D3EE', fontFamily: 'Inter' },
+                    axisLabel: { color: '#94A3B8', fontSize: 9, interval: 3 },
+                    axisLine: { lineStyle: { color: '#22D3EE' } },
+                    axisPointer: { lineStyle: { color: '#22D3EE' } }
+                },
+                yAxis3D: {
+                    type: 'category',
+                    data: dias,
+                    name: 'Día',
+                    nameTextStyle: { color: '#22D3EE', fontFamily: 'Inter' },
+                    axisLabel: { color: '#94A3B8', fontSize: 10 },
+                    axisLine: { lineStyle: { color: '#22D3EE' } }
+                },
+                zAxis3D: {
+                    type: 'value',
+                    name: 'Eventos',
+                    nameTextStyle: { color: '#22D3EE', fontFamily: 'Inter' },
+                    axisLabel: { color: '#94A3B8' },
+                    axisLine: { lineStyle: { color: '#22D3EE' } }
+                },
+                grid3D: {
+                    boxWidth: 200,
+                    boxDepth: 90,
+                    boxHeight: 70,
+                    environment: '#0a0f1a',
+                    axisPointer: {
+                        show: true,
+                        lineStyle: { color: '#22D3EE', width: 1.5 }
+                    },
+                    viewControl: {
+                        autoRotate: true,
+                        autoRotateSpeed: 8,
+                        autoRotateAfterStill: 3,
+                        distance: 260,
+                        alpha: 22,
+                        beta: 35
+                    },
+                    light: {
+                        main: { intensity: 1.3, shadow: true, shadowQuality: 'high', alpha: 35, beta: 40 },
+                        ambient: { intensity: 0.45 }
+                    }
+                },
+                series: [{
+                    type: 'bar3D',
+                    data: seriesData,
+                    shading: 'lambert',
+                    barSize: 6,
+                    bevelSize: 0.3,
+                    bevelSmoothness: 4,
+                    itemStyle: { opacity: 0.92 },
+                    emphasis: {
+                        itemStyle: { color: '#FBBF24', opacity: 1 }
+                    }
+                }]
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => { if (window._chart3D) window._chart3D.resize(); });
+        }
+
+        function renderRolesChart(roles) {
+            const chartDom = document.getElementById('chartRoles');
+            if (!chartDom || typeof echarts === 'undefined') return;
+
+            if (window._chartRoles) { try { window._chartRoles.dispose(); } catch(e) {} }
+            const chart = echarts.init(chartDom);
+            window._chartRoles = chart;
+
+            const admins = roles.admins || 0;
+            const users = roles.users || 0;
+
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    backgroundColor: 'rgba(11, 18, 28, 0.95)',
+                    borderColor: '#22D3EE',
+                    textStyle: { color: '#E7EEF7', fontFamily: 'Inter' },
+                    formatter: '{b}: <b style="color:#FBBF24;">{c}</b> ({d}%)'
+                },
+                legend: {
+                    bottom: 10,
+                    textStyle: { color: '#94A3B8', fontFamily: 'Inter' }
+                },
+                series: [{
+                    type: 'pie',
+                    radius: ['45%', '75%'],
+                    center: ['50%', '45%'],
+                    avoidLabelOverlap: true,
+                    itemStyle: {
+                        borderRadius: 8,
+                        borderColor: '#0a0f1a',
+                        borderWidth: 3,
+                        shadowBlur: 20,
+                        shadowColor: 'rgba(34, 211, 238, 0.4)'
+                    },
+                    label: {
+                        show: true,
+                        color: '#E7EEF7',
+                        fontFamily: 'Inter',
+                        formatter: '{b}\n{c}'
+                    },
+                    labelLine: { lineStyle: { color: '#22D3EE' } },
+                    data: [
+                        { value: admins, name: '🛡️ Admins', itemStyle: { color: '#F5A623' } },
+                        { value: users, name: '👤 Usuarios', itemStyle: { color: '#22D3EE' } }
+                    ]
+                }]
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => { if (window._chartRoles) window._chartRoles.resize(); });
+        }
+
+        function renderTendenciaChart(logsPorDia) {
+            const chartDom = document.getElementById('chartTendencia');
+            if (!chartDom || typeof echarts === 'undefined') return;
+
+            if (window._chartTendencia) { try { window._chartTendencia.dispose(); } catch(e) {} }
+            const chart = echarts.init(chartDom);
+            window._chartTendencia = chart;
+
+            const dias = logsPorDia.map(d => d.dia);
+            const eventos = logsPorDia.map(d => d.eventos);
+
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(11, 18, 28, 0.95)',
+                    borderColor: '#22D3EE',
+                    textStyle: { color: '#E7EEF7', fontFamily: 'Inter' }
+                },
+                grid: { left: '8%', right: '5%', top: '15%', bottom: '15%' },
+                xAxis: {
+                    type: 'category',
+                    data: dias,
+                    axisLabel: { color: '#94A3B8', fontFamily: 'Inter', fontSize: 10 },
+                    axisLine: { lineStyle: { color: 'rgba(148, 197, 255, 0.2)' } }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { color: '#94A3B8', fontFamily: 'Inter' },
+                    axisLine: { lineStyle: { color: 'rgba(148, 197, 255, 0.2)' } },
+                    splitLine: { lineStyle: { color: 'rgba(148, 197, 255, 0.05)' } }
+                },
+                series: [{
+                    data: eventos,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 10,
+                    lineStyle: {
+                        width: 3,
+                        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                            { offset: 0, color: '#22D3EE' },
+                            { offset: 1, color: '#8B5CF6' }
+                        ]),
+                        shadowBlur: 15,
+                        shadowColor: 'rgba(34, 211, 238, 0.5)'
+                    },
+                    itemStyle: {
+                        color: '#22D3EE',
+                        borderColor: '#fff',
+                        borderWidth: 2,
+                        shadowBlur: 15,
+                        shadowColor: '#22D3EE'
+                    },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(34, 211, 238, 0.5)' },
+                            { offset: 1, color: 'rgba(34, 211, 238, 0.02)' }
+                        ])
+                    }
+                }]
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => { if (window._chartTendencia) window._chartTendencia.resize(); });
+        }
+
+        function renderAccionesChart(acciones) {
+            const chartDom = document.getElementById('chartAcciones');
+            if (!chartDom || typeof echarts === 'undefined') return;
+
+            if (window._chartAcciones) { try { window._chartAcciones.dispose(); } catch(e) {} }
+            const chart = echarts.init(chartDom);
+            window._chartAcciones = chart;
+
+            if (!acciones || acciones.length === 0) {
+                chartDom.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,0.3);font-family:var(--mono);font-size:0.85rem;">📭 Aún no hay acciones registradas</div>';
+                return;
+            }
+
+            const nombres = acciones.map(a => a.accion);
+            const valores = acciones.map(a => a.count);
+
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    backgroundColor: 'rgba(11, 18, 28, 0.95)',
+                    borderColor: '#22D3EE',
+                    textStyle: { color: '#E7EEF7', fontFamily: 'Inter' }
+                },
+                grid: { left: '20%', right: '5%', top: '5%', bottom: '10%' },
+                xAxis: {
+                    type: 'value',
+                    axisLabel: { color: '#94A3B8', fontFamily: 'Inter' },
+                    axisLine: { lineStyle: { color: 'rgba(148, 197, 255, 0.2)' } },
+                    splitLine: { lineStyle: { color: 'rgba(148, 197, 255, 0.05)' } }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: nombres,
+                    axisLabel: { color: '#94A3B8', fontFamily: 'Inter', fontSize: 11 },
+                    axisLine: { lineStyle: { color: 'rgba(148, 197, 255, 0.2)' } }
+                },
+                series: [{
+                    data: valores,
+                    type: 'bar',
+                    barWidth: '60%',
+                    itemStyle: {
+                        borderRadius: [0, 8, 8, 0],
+                        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                            { offset: 0, color: '#3B82F6' },
+                            { offset: 1, color: '#22D3EE' }
+                        ]),
+                        shadowBlur: 15,
+                        shadowColor: 'rgba(34, 211, 238, 0.4)'
+                    },
+                    label: {
+                        show: true,
+                        position: 'right',
+                        color: '#22D3EE',
+                        fontFamily: 'Inter',
+                        fontWeight: 600
+                    }
+                }]
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => { if (window._chartAcciones) window._chartAcciones.resize(); });
+        }
+
+        function iniciarMapaGPS() {
+            if (!document.getElementById('mapGPS')) return;
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    const lat = pos.coords.latitude, lon = pos.coords.longitude;
+                    const map = L.map('mapGPS').setView([lat, lon], 15);
+                    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; OpenStreetMap contributors',
+                        maxZoom: 19
+                    }).addTo(map);
+                    L.marker([lat, lon]).addTo(map).bindPopup('Tu ubicación actual');
+                    document.getElementById('direccionGPS').innerHTML = `📍 Lat: ${lat}, Lon: ${lon}`;
+                }, () => {}, { enableHighAccuracy: true });
+            }
+        }
+
+        function actualizarGPS() { iniciarMapaGPS(); }
+
+        // ==========================================
+        // CIFRADO / DESCIFRADO
+        // ==========================================
+        async function cifrarArchivoLocal() {
+            const inputFile = document.getElementById('archivoCifrar');
+            const status = document.getElementById('statusCifrado');
+            if (!inputFile.files || inputFile.files.length === 0) {
+                status.innerHTML = '⚠️ Selecciona un archivo primero.';
+                return;
+            }
+            const file = inputFile.files[0];
+            status.innerHTML = '⏳ Ejecutando cifrado...';
+            const formData = new FormData();
+            formData.append('archivo', file);
+            try {
+                const res = await apiFetch(`${API_URL}/crypto/cifrar`, { // ✅ RUTA NUEVA
+                    method: 'POST',
+                    body: formData
+                });
+                if (res.ok) {
+                    let nombreDescarga = `${file.name}.bin`;
+                    status.innerHTML = `✅ Encriptado. Descargando: ${nombreDescarga}`;
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = nombreDescarga;
+                    document.body.appendChild(a); a.click(); a.remove();
+                    window.URL.revokeObjectURL(url);
+                    status.innerHTML = `✅ Descargado: ${nombreDescarga}`;
+                    inputFile.value = '';
+                } else {
+                    const data = await res.json();
+                    status.innerHTML = `❌ ${data.message || data.error || 'Error'}`;
+                }
+            } catch (e) {
+                status.innerHTML = `❌ Error: ${e.message}`;
+            }
+        }
+
+        async function descifrarArchivoLocal() {
+            const inputFile = document.getElementById('archivoDescifrar');
+            const status = document.getElementById('statusDescifrado');
+            if (!inputFile.files || inputFile.files.length === 0) {
+                status.innerHTML = '⚠️ Selecciona un archivo primero.';
+                return;
+            }
+            const file = inputFile.files[0];
+            status.innerHTML = '⏳ Ejecutando descifrado...';
+            const formData = new FormData();
+            formData.append('archivo', file);
+            try {
+                const res = await apiFetch(`${API_URL}/crypto/descifrar`, { // ✅ RUTA NUEVA
+                    method: 'POST',
+                    body: formData
+                });
+                if (res.ok) {
+                    let nombreDescarga = 'archivo_descifrado';
+                    const cd = res.headers.get('Content-Disposition');
+                    if (cd && cd.includes('filename=')) {
+                        nombreDescarga = cd.split('filename=')[1].replace(/["']/g, '');
+                    }
+                    status.innerHTML = `✅ Desencriptado. Descargando: ${nombreDescarga}`;
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = nombreDescarga;
+                    document.body.appendChild(a); a.click(); a.remove();
+                    window.URL.revokeObjectURL(url);
+                    status.innerHTML = `✅ Descargado: ${nombreDescarga}`;
+                    inputFile.value = '';
+                } else {
+                    const data = await res.json();
+                    status.innerHTML = `❌ ${data.message || data.error || 'Error'}`;
+                }
+            } catch (e) {
+                status.innerHTML = `❌ Error: ${e.message}`;
+            }
+        }
+
+        async function cifrarCarpetaLocal() {
+            const inputFolder = document.getElementById('carpetaCifrar');
+            const status = document.getElementById('statusCifradoCarpeta');
+            const progreso = document.getElementById('progresoCifradoCarpeta');
+            const barra = document.getElementById('barraProgresoCifrado');
+
+            if (!inputFolder.files || inputFolder.files.length === 0) {
+                status.innerHTML = '⚠️ Selecciona una carpeta primero.';
+                return;
+            }
+            const files = Array.from(inputFolder.files);
+            status.innerHTML = `⏳ Cifrando ${files.length} archivos...`;
+            progreso.style.display = 'block';
+            barra.style.width = '0%';
+
+            const formData = new FormData();
+            const rutas = [];
+            files.forEach(file => {
+                const ruta = file.webkitRelativePath || file.name;
+                formData.append('archivos', file, file.name);
+                rutas.push(ruta);
+            });
+            formData.append('rutas', rutas.join('|'));
+            formData.append('total', files.length);
+
+            try {
+                const xhr = new XMLHttpRequest();
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const pct = (e.loaded / e.total) * 50;
+                        barra.style.width = pct + '%';
+                        status.innerHTML = `⏳ Subiendo... ${Math.round(pct * 2)}%`;
+                    }
+                });
+                xhr.addEventListener('load', async () => {
+                    if (xhr.status === 200) {
+                        barra.style.width = '100%';
+                        status.innerHTML = '✅ Descargando ZIP...';
+                        const blob = new Blob([xhr.response], { type: 'application/zip' });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `Carpeta_Encriptada_${new Date().toISOString().slice(0,10)}.zip`;
+                        document.body.appendChild(a); a.click(); a.remove();
+                        window.URL.revokeObjectURL(url);
+                        status.innerHTML = `✅ ${files.length} archivos cifrados`;
+                        inputFolder.value = '';
+                        setTimeout(() => { progreso.style.display = 'none'; barra.style.width = '0%'; }, 3000);
+                    } else {
+                        status.innerHTML = '❌ Error al cifrar carpeta';
+                        progreso.style.display = 'none';
+                    }
+                });
+                xhr.open('POST', `${API_URL}/crypto/cifrar-carpeta`); // ✅ RUTA NUEVA
+                xhr.setRequestHeader('Authorization', `Bearer ${userToken}`); // ✅ TOKEN
+                xhr.responseType = 'blob';
+                xhr.send(formData);
+            } catch (e) {
+                status.innerHTML = `❌ Error: ${e.message}`;
+                progreso.style.display = 'none';
+            }
+        }
+
+        async function descifrarCarpetaLocal() {
+            const inputFolder = document.getElementById('carpetaDescifrar');
+            const status = document.getElementById('statusDescifradoCarpeta');
+            const progreso = document.getElementById('progresoDescifradoCarpeta');
+            const barra = document.getElementById('barraProgresoDescifrado');
+
+            if (!inputFolder.files || inputFolder.files.length === 0) {
+                status.innerHTML = '⚠️ Selecciona una carpeta primero.';
+                return;
+            }
+            const files = Array.from(inputFolder.files);
+            status.innerHTML = `⏳ Descifrando ${files.length} archivos...`;
+            progreso.style.display = 'block';
+            barra.style.width = '0%';
+
+            const formData = new FormData();
+            const rutas = [];
+            files.forEach(file => {
+                const ruta = file.webkitRelativePath || file.name;
+                formData.append('archivos', file, file.name);
+                rutas.push(ruta);
+            });
+            formData.append('rutas', rutas.join('|'));
+            formData.append('total', files.length);
+
+            try {
+                const xhr = new XMLHttpRequest();
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const pct = (e.loaded / e.total) * 50;
+                        barra.style.width = pct + '%';
+                        status.innerHTML = `⏳ Subiendo... ${Math.round(pct * 2)}%`;
+                    }
+                });
+                xhr.addEventListener('load', async () => {
+                    if (xhr.status === 200) {
+                        barra.style.width = '100%';
+                        status.innerHTML = '✅ Descargando ZIP...';
+                        const blob = new Blob([xhr.response], { type: 'application/zip' });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `Carpeta_Descriptada_${new Date().toISOString().slice(0,10)}.zip`;
+                        document.body.appendChild(a); a.click(); a.remove();
+                        window.URL.revokeObjectURL(url);
+                        status.innerHTML = `✅ ${files.length} archivos descifrados`;
+                        inputFolder.value = '';
+                        setTimeout(() => { progreso.style.display = 'none'; barra.style.width = '0%'; }, 3000);
+                    } else {
+                        status.innerHTML = '❌ Error al descifrar carpeta';
+                        progreso.style.display = 'none';
+                    }
+                });
+                xhr.open('POST', `${API_URL}/crypto/descifrar-carpeta`); // ✅ RUTA NUEVA
+                xhr.setRequestHeader('Authorization', `Bearer ${userToken}`); // ✅ TOKEN
+                xhr.responseType = 'blob';
+                xhr.send(formData);
+            } catch (e) {
+                status.innerHTML = `❌ Error: ${e.message}`;
+                progreso.style.display = 'none';
+            }
+        }
+
+        // ==========================================
+        // ADMIN
+        // ==========================================
+        function cambiarTabAdmin(tab) {
+            adminTabActual = tab;
+            document.getElementById('adminTabUsuarios').style.display = tab === 'usuarios' ? 'block' : 'none';
+            document.getElementById('adminTabLogs').style.display = tab === 'logs' ? 'block' : 'none';
+            document.getElementById('adminTabConfig').style.display = tab === 'config' ? 'block' : 'none';
+            ['usuarios','logs','config'].forEach(t => {
+                const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+                if (btn) btn.className = t === tab ? 'btn-primary' : 'btn-outline';
+            });
+            if (tab === 'usuarios') cargarAdminUsuarios();
+            else if (tab === 'logs') cargarAdminLogs();
+            else if (tab === 'config') cargarAdminConfig();
+        }
+
+        async function cargarAdminUsuarios() {
+            try {
+                const res = await apiFetch(`${API_URL}/admin/usuarios`); // ✅ RUTA NUEVA
+                const usuarios = await res.json();
+                if (usuarios.error) {
+                    document.getElementById('adminUserBody').innerHTML = `<tr><td colspan="5" style="color:#FF4466;">${usuarios.error}</td></tr>`;
+                    return;
+                }
+                document.getElementById('adminUserCount').textContent = `Total: ${usuarios.length}`;
+                document.getElementById('adminUserBody').innerHTML = usuarios.map(u => `
+                    <tr>
+                        <td>${u.email}</td>
+                        <td>${u.nombre || '-'}</td>
+                        <td><span style="color:${u.rol === 'admin' ? '#F5A623' : '#4A90E2'};">${u.rol}</span></td>
+                        <td><span style="color:${u.activo !== false ? '#4CAF50' : '#FF4466'};">${u.activo !== false ? 'Activo' : 'Bloqueado'}</span></td>
+                        <td>
+                            <div class="admin-actions">
+                                <button class="btn-small edit" onclick="adminEditarUsuario('${u.id}')">✏️</button>
+                                <button class="btn-small password" onclick="adminCambiarPassModal('${u.id}')">🔑</button>
+                                <button class="btn-small delete" onclick="adminEliminarUsuario('${u.id}','${u.email}')">🗑️</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                document.getElementById('adminUserBody').innerHTML = `<tr><td colspan="5" style="color:#FF4466;">Error</td></tr>`;
+            }
+        }
+
+        function adminEditarUsuario(userId) {
+            adminUserIdEditando = userId;
+            const row = document.querySelector(`#adminUserBody tr td button[onclick*="adminEditarUsuario('${userId}')"]`);
+            if (!row) return;
+            const cells = row.closest('tr').querySelectorAll('td');
+            document.getElementById('editNombre').value = cells[1].textContent.trim();
+            document.getElementById('editEmail').value = cells[0].textContent.trim();
+            document.getElementById('editRol').value = cells[2].textContent.trim();
+            document.getElementById('modalAdminEdit').style.display = 'flex';
+        }
+
+        async function adminGuardarEdicion() {
+            const nombre = document.getElementById('editNombre').value;
+            const rol = document.getElementById('editRol').value;
+            if (!adminUserIdEditando) return;
+            try {
+                const res = await apiFetch(`${API_URL}/admin/usuarios/${adminUserIdEditando}`, { // ✅ RUTA NUEVA
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre, rol })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    cerrarModal('modalAdminEdit');
+                    cargarAdminUsuarios();
+                }
+            } catch (e) {}
+        }
+
+        function adminCambiarPassModal(userId) {
+            adminUserIdPassword = userId;
+            document.getElementById('adminNewPassword').value = '';
+            document.getElementById('adminConfirmPassword').value = '';
+            document.getElementById('adminPassError').textContent = '';
+            document.getElementById('adminPassSuccess').textContent = '';
+            document.getElementById('modalAdminPassword').style.display = 'flex';
+        }
+
+        async function adminCambiarPassword() {
+            const newPass = document.getElementById('adminNewPassword').value;
+            const confirmPass = document.getElementById('adminConfirmPassword').value;
+            const errEl = document.getElementById('adminPassError');
+            const okEl = document.getElementById('adminPassSuccess');
+            errEl.textContent = '';
+            okEl.textContent = '';
+
+            if (!adminUserIdPassword) return;
+            if (newPass.length < 6) { errEl.textContent = 'Mínimo 6 caracteres'; return; }
+            if (newPass !== confirmPass) { errEl.textContent = 'Las contraseñas no coinciden'; return; }
+
+            try {
+                const res = await apiFetch(`${API_URL}/admin/usuarios/${adminUserIdPassword}/cambiar-password`, { // ✅ RUTA NUEVA
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nueva_password: newPass })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    okEl.textContent = '✅ Contraseña actualizada';
+                    setTimeout(() => cerrarModal('modalAdminPassword'), 1500);
+                } else {
+                    errEl.textContent = data.message || 'Error';
+                }
+            } catch (e) {
+                errEl.textContent = 'Error de conexión';
+            }
+        }
+
+        function adminEliminarUsuario(userId, email) {
+            adminUserIdEliminar = userId;
+            document.getElementById('deleteUserName').textContent = email;
+            document.getElementById('modalConfirmDelete').style.display = 'flex';
+        }
+
+        async function adminConfirmarEliminar() {
+            if (!adminUserIdEliminar) return;
+            try {
+                const res = await apiFetch(`${API_URL}/admin/usuarios/${adminUserIdEliminar}`, { // ✅ RUTA NUEVA
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (data.success) {
+                    cerrarModal('modalConfirmDelete');
+                    cargarAdminUsuarios();
+                }
+            } catch (e) {}
+        }
+
+        async function cargarAdminLogs() {
+            try {
+                const res = await apiFetch(`${API_URL}/admin/logs?limit=100`); // ✅ RUTA NUEVA
+                const logs = await res.json();
+                const container = document.getElementById('adminLogsList');
+                if (!container) return;
+                if (logs.error) {
+                    container.innerHTML = `<div class="log-item" style="color:#FF4466;">${logs.error}</div>`;
+                    return;
+                }
+                const countEl = document.getElementById('adminLogCount');
+                if (countEl) countEl.textContent = `Total: ${logs.length}`;
+                container.innerHTML = logs.map(l =>
+                    `<div class="log-item"><span class="log-time">${new Date(l.fecha).toLocaleString()}</span><span class="log-icon">🛡️</span><span class="log-text"><strong>${l.usuario || 'sistema'}</strong> - ${l.detalle}</span></div>`
+                ).join('');
+            } catch (e) {}
+        }
+
+        async function cargarAdminConfig() {
+            try {
+                const res = await apiFetch(`${API_URL}/admin/configuracion`); // ✅ RUTA NUEVA
+                const config = await res.json();
+                if (!config.error) {
+                    document.getElementById('configPuerto').value = config.puerto || 5000;
+                    document.getElementById('configAlgoritmo').value = config.cifrado_algoritmo || 'AES-256';
+                    document.getElementById('configNgrok').value = config.ngrok_token || '';
+                }
+            } catch (e) {}
+        }
+
+        async function adminGuardarConfig() {
+            const puerto = document.getElementById('configPuerto').value;
+            const algoritmo = document.getElementById('configAlgoritmo').value;
+            const ngrokToken = document.getElementById('configNgrok').value;
+            const errEl = document.getElementById('configError');
+            const okEl = document.getElementById('configSuccess');
+            errEl.textContent = '';
+            okEl.textContent = '';
+            try {
+                const res = await apiFetch(`${API_URL}/admin/configuracion`, { // ✅ RUTA NUEVA
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        puerto: parseInt(puerto) || 5000,
+                        cifrado_algoritmo: algoritmo,
+                        ngrok_token: ngrokToken
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    okEl.textContent = '✅ Configuración guardada';
+                } else {
+                    errEl.textContent = data.message || 'Error';
+                }
+            } catch (e) {
+                errEl.textContent = 'Error de conexión';
+            }
+        }
+
+        async function cargarDashboardAdmin() {
+            try {
+                const res = await apiFetch(`${API_URL}/admin/dashboard`); // ✅ RUTA NUEVA
+                const data = await res.json();
+                document.getElementById('dashboardStats').innerHTML = `
+                    <div class="stat-card"><div class="stat-header"><span class="stat-title">👥 Total Usuarios</span></div><div class="stat-value">${data.total_usuarios}</div></div>
+                    <div class="stat-card"><div class="stat-header"><span class="stat-title">🟢 Activos</span></div><div class="stat-value">${data.usuarios_activos}</div></div>
+                    <div class="stat-card"><div class="stat-header"><span class="stat-title">🔴 Bloqueados</span></div><div class="stat-value" style="color:#FF4466;">${data.usuarios_bloqueados}</div></div>
+                `;
+                document.getElementById('dashboardStats2').innerHTML = `
+                    <div class="stat-card"><div class="stat-header"><span class="stat-title">🟢 Sesiones hoy</span></div><div class="stat-value">${data.sesiones_hoy}</div></div>
+                    <div class="stat-card"><div class="stat-header"><span class="stat-title">❌ Fallidos</span></div><div class="stat-value" style="color:#FF4466;">${data.intentos_fallidos}</div></div>
+                `;
+                const grafico = document.getElementById('actividadGrafico');
+                const max = Math.max(...data.actividad_por_hora.map(a => a.eventos), 1);
+                const ultimas12 = data.actividad_por_hora.slice(-12);
+                grafico.innerHTML = ultimas12.map(a => `
+                    <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+                        <div style="background:linear-gradient(to top, #00B4FF, #4A90E2);width:100%;height:${(a.eventos/max)*150}px;border-radius:4px 4px 0 0;min-height:2px;"></div>
+                        <div style="font-size:0.5rem;color:rgba(255,255,255,0.3);margin-top:4px;">${a.hora}</div>
+                    </div>
+                `).join('');
+            } catch (e) {}
+        }
+
+        async function cargarSesiones() {
+            try {
+                const res = await apiFetch(`${API_URL}/admin/sesiones`); // ✅ RUTA NUEVA
+                const sesiones = await res.json();
+                const container = document.getElementById('sesionesLista');
+                if (!sesiones || sesiones.length === 0) {
+                    container.innerHTML = '<div class="log-item">📭 No hay sesiones activas</div>';
+                    return;
+                }
+                container.innerHTML = sesiones.map(s =>
+                    `<div class="log-item"><span class="log-icon">🖥️</span><span class="log-text"><strong>${s.email}</strong> - IP: ${s.ip} - ${new Date(s.timestamp).toLocaleString()}</span></div>`
+                ).join('');
+            } catch (e) {}
+        }
+
+        async function cargarAuditoria(filtros = {}) {
+            try {
+                let url = `${API_URL}/admin/auditoria?limit=200`; // ✅ RUTA NUEVA
+                if (filtros.usuario) url += `&usuario=${encodeURIComponent(filtros.usuario)}`;
+                if (filtros.accion) url += `&accion=${encodeURIComponent(filtros.accion)}`;
+                if (filtros.fecha_desde) url += `&fecha_desde=${filtros.fecha_desde}`;
+                if (filtros.fecha_hasta) url += `&fecha_hasta=${filtros.fecha_hasta}`;
+                const res = await apiFetch(url);
+                const data = await res.json();
+                if (data.error) return;
+
+                const filtroU = document.getElementById('filtroUsuario');
+                const filtroA = document.getElementById('filtroAccion');
+                if (filtroU && filtroU.options.length === 1) {
+                    data.usuarios.forEach(u => {
+                        if (u) filtroU.innerHTML += `<option value="${u}">${u}</option>`;
+                    });
+                }
+                if (filtroA && filtroA.options.length === 1) {
+                    data.acciones.forEach(a => {
+                        if (a) filtroA.innerHTML += `<option value="${a}">${a}</option>`;
+                    });
+                }
+
+                document.getElementById('auditoriaTotal').textContent = `Total: ${data.total}`;
+                document.getElementById('auditoriaLista').innerHTML = data.logs.map(l =>
+                    `<div class="log-item"><span class="log-time">${new Date(l.fecha).toLocaleString()}</span><span class="log-text"><strong>${l.usuario || 'sistema'}</strong> - ${l.detalle}</span></div>`
+                ).join('');
+            } catch (e) {}
+        }
+
+        function aplicarFiltrosAuditoria() {
+            cargarAuditoria({
+                usuario: document.getElementById('filtroUsuario').value,
+                accion: document.getElementById('filtroAccion').value,
+                fecha_desde: document.getElementById('filtroFechaDesde').value,
+                fecha_hasta: document.getElementById('filtroFechaHasta').value
+            });
+        }
+
+        function exportarAuditoriaCSV() {
+            const logs = document.querySelectorAll('#auditoriaLista .log-item');
+            let csv = 'Fecha,Usuario,Detalle\n';
+            logs.forEach(item => {
+                const time = item.querySelector('.log-time')?.textContent || '';
+                const text = item.querySelector('.log-text')?.textContent || '';
+                csv += `"${time}","","${text.replace(/"/g, '""')}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `auditoria_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+        }
+
+        function configurarBackup() {
+            document.getElementById('btnRestaurarBackup').onclick = restaurarBackup;
+        }
+
+        async function realizarBackup() {
+            const coleccion = document.getElementById('backupColeccion').value;
+            const errEl = document.getElementById('backupError');
+            const okEl = document.getElementById('backupSuccess');
+            errEl.textContent = '';
+            okEl.textContent = '';
+            try {
+                const res = await apiFetch(`${API_URL}/admin/backup?coleccion=${coleccion}`); // ✅ RUTA NUEVA
+                if (!res.ok) {
+                    const d = await res.json();
+                    errEl.textContent = d.error || 'Error';
+                    return;
+                }
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `backup_${coleccion}_${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+                okEl.textContent = '✅ Backup descargado';
+            } catch (e) {
+                errEl.textContent = 'Error de conexión';
+            }
+        }
+
+        async function restaurarBackup() {
+            const fileInput = document.getElementById('restoreFile');
+            const coleccion = document.getElementById('restoreCollection').value;
+            const errEl = document.getElementById('restoreError');
+            const okEl = document.getElementById('restoreSuccess');
+            errEl.textContent = '';
+            okEl.textContent = '';
+
+            if (!fileInput.files || fileInput.files.length === 0) {
+                errEl.textContent = 'Selecciona un archivo JSON';
+                return;
+            }
+            const formData = new FormData();
+            formData.append('archivo', fileInput.files[0]);
+            formData.append('coleccion', coleccion);
+            try {
+                const res = await apiFetch(`${API_URL}/admin/restaurar`, { method: 'POST', body: formData }); // ✅ RUTA NUEVA
+                const data = await res.json();
+                if (data.success) {
+                    okEl.textContent = `✅ ${data.message}`;
+                    setTimeout(() => cerrarModal('modalRestaurar'), 2000);
+                } else {
+                    errEl.textContent = data.error || 'Error';
+                }
+            } catch (e) {
+                errEl.textContent = 'Error de conexión';
+            }
+        }
+
+        async function cargarPoliticas() {
+            try {
+                const res = await apiFetch(`${API_URL}/admin/politicas-seguridad`); // ✅ RUTA NUEVA
+                const data = await res.json();
+                document.getElementById('politicasContenido').innerHTML = `
+                    <div style="margin-bottom:12px;">
+                        <label style="font-size:0.7rem;color:rgba(255,255,255,0.3);">Longitud mínima</label>
+                        <input type="number" id="polLongitud" min="6" max="20" value="${data.longitud_minima || 8}" style="width:100%;padding:12px;border-radius:14px;border:1px solid rgba(0,180,255,0.06);background:rgba(0,0,0,0.2);color:white;" />
+                    </div>
+                    <div class="checkbox-group"><input type="checkbox" id="polMayuscula" ${data.requiere_mayuscula ? 'checked' : ''} /><label>Requerir mayúscula</label></div>
+                    <div class="checkbox-group"><input type="checkbox" id="polNumero" ${data.requiere_numero ? 'checked' : ''} /><label>Requerir número</label></div>
+                    <div class="checkbox-group"><input type="checkbox" id="polEspecial" ${data.requiere_especial ? 'checked' : ''} /><label>Requerir carácter especial</label></div>
+                    <div style="margin-bottom:12px;">
+                        <label style="font-size:0.7rem;color:rgba(255,255,255,0.3);">Intentos máximos</label>
+                        <input type="number" id="polIntentos" min="3" max="10" value="${data.intentos_maximos || 5}" style="width:100%;padding:12px;border-radius:14px;border:1px solid rgba(0,180,255,0.06);background:rgba(0,0,0,0.2);color:white;" />
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <label style="font-size:0.7rem;color:rgba(255,255,255,0.3);">Bloqueo (min)</label>
+                        <input type="number" id="polBloqueo" min="5" max="120" value="${data.bloqueo_tiempo || 30}" style="width:100%;padding:12px;border-radius:14px;border:1px solid rgba(0,180,255,0.06);background:rgba(0,0,0,0.2);color:white;" />
+                    </div>
+                    <div class="checkbox-group"><input type="checkbox" id="pol2FA" ${data['2fa_obligatorio'] ? 'checked' : ''} /><label>Obligar 2FA</label></div>
+                `;
+            } catch (e) {}
+        }
+
+        async function guardarPoliticas() {
+            const data = {
+                longitud_minima: parseInt(document.getElementById('polLongitud').value) || 8,
+                requiere_mayuscula: document.getElementById('polMayuscula').checked,
+                requiere_numero: document.getElementById('polNumero').checked,
+                requiere_especial: document.getElementById('polEspecial').checked,
+                intentos_maximos: parseInt(document.getElementById('polIntentos').value) || 5,
+                bloqueo_tiempo: parseInt(document.getElementById('polBloqueo').value) || 30,
+                '2fa_obligatorio': document.getElementById('pol2FA').checked
+            };
+            try {
+                const res = await apiFetch(`${API_URL}/admin/politicas-seguridad`, { // ✅ RUTA NUEVA
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (result.success) alert('✅ Políticas guardadas');
+                else alert('❌ ' + (result.error || 'Error'));
+            } catch (e) { alert('❌ Error de conexión'); }
+        }
+
+        // ==========================================
+        // HERRAMIENTAS REMOTAS
+        // ==========================================
+        async function ejecutarHerramienta(tipo) {
+            const container = document.getElementById('contenidoHerramienta');
+            if (!container) return;
+
+            if (!currentSessionId) {
+                container.innerHTML = '<div style="color:#fbbf24;">⚠️ No hay sesión SSH activa. Ve a <b>Acceso Remoto</b> y conéctate primero.</div>';
+                return;
+            }
+
+            container.innerHTML = '⏳ Ejecutando...';
+            let comando = '';
+            switch (tipo) {
+                case 'estado': comando = 'whoami && hostname'; break;
+                case 'explorar': comando = 'dir'; break;
+                case 'logs': comando = 'wevtutil qe System /c:10 /rd:true /f:text'; break;
+                case 'red': comando = 'ipconfig /all'; break;
+            }
+            try {
+                const res = await apiFetch(`${API_URL}/ssh/ejecutar`, { // ✅ RUTA NUEVA
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: currentSessionId, comando })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    container.innerHTML = `<pre style="background:rgba(0,0,0,0.2);padding:12px;border-radius:12px;overflow:auto;max-height:300px;color:#E2E8F0;white-space:pre-wrap;">${escapeHtml(data.output)}</pre>`;
+                } else {
+                    container.innerHTML = `<div style="color:#f87171;">❌ ${escapeHtml(data.message || 'Error')}</div>`;
+                }
+            } catch (e) {
+                container.innerHTML = '❌ Error de conexión';
+            }
+        }
+
+        async function cambiarPassword() {
+            const oldPass = document.getElementById('oldPassword').value;
+            const newPass = document.getElementById('newPassword').value;
+            if (!oldPass || !newPass) { alert('Completa ambos campos'); return; }
+            if (newPass.length < 6) { alert('Mínimo 6 caracteres'); return; }
+            try {
+                const res = await apiFetch(`${API_URL}/auth/cambiar-password`, { // ✅ RUTA NUEVA
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ old_password: oldPass, new_password: newPass })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('✅ Contraseña actualizada');
+                    cerrarModal('modalCambiarPassword');
+                    document.getElementById('oldPassword').value = '';
+                    document.getElementById('newPassword').value = '';
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            } catch (e) { alert('❌ Error'); }
+        }
+
+        // ==========================================
+        // EVENTOS DEL MENÚ
+        // ==========================================
+        document.getElementById('toggleEquipos').addEventListener('click', () => {
+            document.getElementById('subEquipos').classList.toggle('show');
+        });
+        document.getElementById('toggleConfig').addEventListener('click', () => {
+            document.getElementById('subConfig').classList.toggle('show');
+        });
+        document.getElementById('toggleAdmin').addEventListener('click', () => {
+            if (userRol !== 'admin') return;
+            document.getElementById('subAdmin').classList.toggle('show');
+        });
+
+        document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+            item.addEventListener('click', () => {
+                const view = item.getAttribute('data-view');
+                if (view) loadView(view);
+            });
+        });
+
+        document.querySelectorAll('.sub-item[data-view]').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const view = item.getAttribute('data-view');
+                if (view) loadView(view);
+                e.stopPropagation();
+            });
+        });
+
+        // ==========================================
+        // INICIALIZAR
+        // ==========================================
+        loadView('inicio');
+    </script>
+</body>
+</html>

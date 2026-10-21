@@ -1,0 +1,29 @@
+services:
+  # Base de Datos MongoDB
+  mongo_db:
+    image: mongo:7.0
+    container_name: guardian_mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: guardian_db
+
+  # Aplicación Flask + Go
+  guardian_app:
+    build: .
+    container_name: guardian_app
+    restart: always
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo_db
+    env_file:
+      - .env
+    environment:
+      - MONGO_URI=mongodb://mongo_db:27017/
+
+volumes:
+  mongo_data:
